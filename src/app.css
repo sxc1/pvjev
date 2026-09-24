@@ -1,0 +1,13 @@
+@import "../vendor/design/sxc1-design-tokens.css";
+
+@layer base {
+  :root {
+    font-family: var(--font-sans);
+    color: var(--foreground);
+    background: var(--background);
+    color-scheme: dark;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+}
