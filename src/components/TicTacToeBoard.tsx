@@ -1,5 +1,6 @@
 import type { TicTacToeScreenProps } from '../contracts'
 import { selectTicTacToePresentation } from '../games/tic-tac-toe/selectors'
+import { TicTacToeSymbol } from './TicTacToeSymbol'
 import './tic-tac-toe-widgets.css'
 
 export function TicTacToeBoard({ snapshot, dispatch }: TicTacToeScreenProps) {
@@ -17,7 +18,7 @@ export function TicTacToeBoard({ snapshot, dispatch }: TicTacToeScreenProps) {
             disabled={!cell.canActivate}
             onClick={() => dispatch({ type: 'activate-cell', cell: cell.index })}
           >
-            {cell.symbol ?? (cell.preview ? <span className="ttt-preview"><span aria-hidden="true">{snapshot.match!.humanSymbol}</span><span className="ttt-preview-label">Pending</span></span> : null)}
+            {cell.symbol ? <TicTacToeSymbol symbol={cell.symbol} /> : (cell.preview ? <span className="ttt-preview"><TicTacToeSymbol symbol={snapshot.match!.humanSymbol} /><span className="ttt-preview-label">Pending</span></span> : null)}
           </button>
         ))}
       </div>

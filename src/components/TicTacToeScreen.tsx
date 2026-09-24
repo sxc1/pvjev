@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Settings } from 'lucide-react'
 import type { TicTacToeCommand, TicTacToeScreenProps, TicTacToeSnapshot } from '../contracts'
+import { TicTacToeSymbol } from './TicTacToeSymbol'
 
 export interface TicTacToeShellProps extends TicTacToeScreenProps {
   /** T8 supplies game-specific board and history widgets here. */
@@ -127,9 +128,8 @@ export function TicTacToeScreen({ snapshot, dispatch, board, history }: TicTacTo
             <p>X makes the first move. The CPU chooses random legal moves.</p>
             <div className="pv-side-options" role="group" aria-label="Your side">
               {(['X', 'O'] as const).map((symbol) => (
-                <button className={`pv-side-option${snapshot.setupSymbol === symbol ? ' pv-side-option-selected' : ''}`} type="button" aria-pressed={snapshot.setupSymbol === symbol} onClick={() => dispatch({ type: 'select-side', symbol })} key={symbol}>
-                  <span className="pv-side-symbol" aria-hidden="true">{symbol}</span>
-                  <span>Play as {symbol}</span>
+                <button className={`pv-side-option${snapshot.setupSymbol === symbol ? ' pv-side-option-selected' : ''}`} type="button" aria-label={`Play as ${symbol}`} aria-pressed={snapshot.setupSymbol === symbol} onClick={() => dispatch({ type: 'select-side', symbol })} key={symbol}>
+                  <TicTacToeSymbol symbol={symbol} />
                 </button>
               ))}
             </div>
