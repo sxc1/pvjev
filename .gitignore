@@ -2,3 +2,14 @@ node_modules/
 dist/
 *.local
 *.tsbuildinfo
+.npm-cache/
+playwright-report/
+test-results/
+.pw-browsers/
+coverage/
+blob-report/
+playwright/.cache/
+*.log
+.env
+.env.*
+.DS_Store
