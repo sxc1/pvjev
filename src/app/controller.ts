@@ -16,6 +16,10 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
   let disposed = false
   let attempt: AttemptResources | null = null
   let invalidSavedMatch = false
+  const unsubscribeSettings = deps.settings?.subscribe(() => {
+    const settings = deps.settings!.getSnapshot()
+    if (settings !== snapshot.settings) publish({ ...snapshot, settings, view: { ...snapshot.view, pendingCell: null } })
+  })
 
   const publish = (next: TicTacToeSnapshot) => {
     if (next === snapshot || disposed) return
@@ -109,10 +113,13 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
   const start = () => {
     if (started || disposed) return
     started = true
-    const settings = storage.readSettings()
-    if (settings.status === 'valid') publish({ ...snapshot, settings: settings.value.settings })
-    else if (settings.status === 'invalid') addNotice('invalid-settings', settings.reason)
-    else if (settings.status === 'unavailable') addNotice('unavailable', `Settings could not be loaded. ${settings.error}`)
+    if (deps.settings) publish({ ...snapshot, settings: deps.settings.getSnapshot() })
+    else {
+      const settings = storage.readSettings()
+      if (settings.status === 'valid') publish({ ...snapshot, settings: settings.value.settings })
+      else if (settings.status === 'invalid') addNotice('invalid-settings', settings.reason)
+      else if (settings.status === 'unavailable') addNotice('unavailable', `Settings could not be loaded. ${settings.error}`)
+    }
     const saved = storage.readMatch(decodeReplayMatchEnvelope)
     if (saved.status === 'valid') publish({ ...snapshot, match: saved.value.match, setupSymbol: saved.value.match.humanSymbol, view: liveView(), request: { status: 'idle', consecutiveInvalid: saved.value.recovery.consecutiveInvalid } })
     else if (saved.status === 'invalid') { invalidSavedMatch = true; addNotice('invalid-match', `${saved.reason} Choose Start fresh to replace it.`) }
@@ -121,6 +128,11 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
   }
   const dispatch: TicTacToeController['dispatch'] = command => {
     if (!started || disposed) return { status: 'ignored', reason: 'not-ready' }
+    if (command.type === 'set-confirm-moves' && deps.settings) {
+      if (typeof command.enabled !== 'boolean') return { status: 'ignored', reason: 'illegal' }
+      deps.settings.setConfirmMoves(command.enabled)
+      return { status: 'applied' }
+    }
     if (command.type === 'start-fresh') {
       if (!invalidSavedMatch) return { status: 'ignored', reason: 'illegal' }
       invalidSavedMatch = false
@@ -157,6 +169,6 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
     getSnapshot: () => snapshot,
     subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
     dispatch, start,
-    dispose: () => { if (disposed) return; disposed = true; releaseAttempt(); listeners.clear() },
+    dispose: () => { if (disposed) return; disposed = true; releaseAttempt(); unsubscribeSettings?.(); listeners.clear() },
   }
 }

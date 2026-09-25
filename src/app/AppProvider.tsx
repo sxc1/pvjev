@@ -1,10 +1,26 @@
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react'
-import type { TicTacToeController } from '../contracts'
+import type { ApplicationHost, TicTacToeController } from '../contracts'
 
 const ControllerContext = createContext<TicTacToeController | null>(null)
+const HostContext = createContext<ApplicationHost | null>(null)
 
-export function AppProvider({ controller, children }: { readonly controller: TicTacToeController; readonly children: ReactNode }) {
-  return <ControllerContext.Provider value={controller}>{children}</ControllerContext.Provider>
+export function AppProvider({ controller, host, children }: { readonly controller?: TicTacToeController; readonly host?: ApplicationHost; readonly children: ReactNode }) {
+  return <HostContext.Provider value={host ?? null}><ControllerContext.Provider value={host?.ticTacToe ?? controller ?? null}>{children}</ControllerContext.Provider></HostContext.Provider>
+}
+
+export function useApplicationHost() {
+  const host = useContext(HostContext)
+  if (!host) throw new Error('Application host is missing')
+  const selectedGame = useSyncExternalStore(host.subscribe, host.getSelectedGame, host.getSelectedGame)
+  return { host, selectedGame }
+}
+
+export function useConnectFourController() {
+  const host = useContext(HostContext)
+  if (!host) throw new Error('Application host is missing')
+  const controller = host.connectFour
+  const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
+  return { snapshot, dispatch: controller.dispatch }
 }
 
 export function useTicTacToeController() {

@@ -1,0 +1,15 @@
+.cf-history-widget { min-width: 0; }
+.pv-history-panel.cf-history-panel { max-height: none; overflow: visible; }
+.cf-history-heading { display: flex; align-items: center; justify-content: space-between; }
+.cf-history-heading h2 { margin: 0; }
+.cf-history-controls { display: flex; gap: .5rem; margin-block: .75rem; }
+.cf-history-list { list-style: none; padding: 0; margin: 0; max-height: calc(5 * 2.75rem + 4 * .35rem); overflow-y: auto; }
+.cf-history-list li + li { margin-top: .35rem; }
+.cf-history-entry { display: flex; justify-content: space-between; gap: 1rem; width: 100%; min-height: 2.75rem; padding: .55rem .7rem; border: 1px solid currentColor; border-radius: .4rem; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.cf-history-entry-selected { outline: 3px solid #a33be0; outline-offset: -3px; }
+.cf-mobile-toggle { display: none; }
+@media (max-width: 899px) {
+  .cf-mobile-toggle { display: inline-flex; }
+  .cf-history-content { display: none; }
+  .cf-history-content.cf-history-expanded { display: block; }
+}

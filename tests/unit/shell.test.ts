@@ -22,14 +22,15 @@ function html(snapshot: TicTacToeSnapshot) {
 }
 
 describe('T5 shell fixtures', () => {
-  it('renders setup and native disabled future navigation', () => {
+  it('renders setup and multi-game navigation with chess disabled', () => {
     const markup = html(base)
     expect(markup).toContain('Choose your side')
     expect(markup).toContain('aria-pressed="true"')
     expect(markup).not.toContain('Reset choice')
     expect(markup).toContain('aria-label="Settings"')
-    expect(markup).toMatch(/disabled=""[^>]*>Connect Four/)
-    expect(markup).toMatch(/disabled=""[^>]*>Chess/)
+    expect(markup).toMatch(/aria-label="Tic Tac Toe"[^>]*><svg/)
+    expect(markup).toMatch(/aria-label="Connect Four"[^>]*><svg/)
+    expect(markup).toMatch(/aria-label="Chess"[^>]*disabled=""[^>]*><svg/)
     expect(markup).not.toContain('role="tab"')
   })
 

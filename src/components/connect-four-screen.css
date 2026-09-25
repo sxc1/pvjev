@@ -1,0 +1,11 @@
+.cf-setup-row { margin-block: 1.25rem; }
+.cf-setup-row-label { display: block; margin-bottom: .55rem; font-weight: 700; }
+.cf-setup-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.cf-setup-options .pv-side-option { display: flex; gap: .65rem; min-height: 72px; justify-content: center; font-weight: 700; }
+.cf-color-swatch { display: inline-block; width: 1.7rem; height: 1.7rem; border: 2px solid color-mix(in srgb, var(--foreground) 40%, transparent); border-radius: 50%; }
+.cf-color-swatch-red { background: #d8383c; }
+.cf-color-swatch-yellow { background: #f8c634; }
+.cf-review-toggle { gap: .45rem; align-self: flex-end; }
+.cf-review-toggle svg { width: 1.2rem; height: 1.2rem; }
+@media (max-width: 560px) { .cf-setup-options .pv-side-option { min-height: 54px; } }
+@media (max-width: 560px) { .pv-board-panel.cf-board-panel { padding: .25rem; } }

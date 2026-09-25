@@ -100,9 +100,9 @@ test.describe('B4 responsive presentation', () => {
 })
 
 test.describe('B5 browser controls', () => {
-  test('keyboard play, meaningful labels, disabled games, and Escape focus return', async ({ page }) => {
+  test('keyboard play, meaningful labels, game navigation, and Escape focus return', async ({ page }) => {
     await page.goto('')
-    await expect(page.getByRole('button', { name: 'Connect Four' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Connect Four' })).toBeEnabled()
     await expect(page.getByRole('button', { name: 'Chess' })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Tic Tac Toe' })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('button', { name: 'Start game' }).click()
@@ -122,7 +122,7 @@ test.describe('B5 browser controls', () => {
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
     await expect(resign).toBeFocused()
-    await expect(page.getByRole('button', { name: 'Connect Four' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Connect Four' })).toBeEnabled()
     await expect(page.getByRole('button', { name: 'Chess' })).toBeDisabled()
     await expect(page).toHaveURL(/\/pvjev\/?$/)
   })

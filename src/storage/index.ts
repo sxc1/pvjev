@@ -73,17 +73,21 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export interface StorageAdapter {
-  readMatch(decoder?: Decoder<MatchEnvelope>): StorageReadResult<MatchEnvelope>
+export interface StorageAdapter<Envelope = MatchEnvelope> {
+  readMatch(decoder?: Decoder<Envelope>): StorageReadResult<Envelope>
   readSettings(): StorageReadResult<SettingsEnvelope>
-  writeMatch(envelope: MatchEnvelope): StorageWriteResult
+  writeMatch(envelope: Envelope): StorageWriteResult
   writeSettings(envelope: SettingsEnvelope): StorageWriteResult
   removeMatch(): StorageWriteResult
   removeSettings(): StorageWriteResult
 }
 
 /** Acquisition is deferred to each operation because even accessing localStorage can throw. */
-export function createStorageAdapter(acquire: () => KeyValueStorage): StorageAdapter {
+export function createStorageAdapter(acquire: () => KeyValueStorage): StorageAdapter<MatchEnvelope>
+export function createStorageAdapter<Envelope>(acquire: () => KeyValueStorage, options: { readonly matchKey: string; readonly decodeMatch: Decoder<Envelope> }): StorageAdapter<Envelope>
+export function createStorageAdapter<Envelope = MatchEnvelope>(acquire: () => KeyValueStorage, options?: { readonly matchKey: string; readonly decodeMatch: Decoder<Envelope> }): StorageAdapter<Envelope> {
+  const matchKey = options?.matchKey ?? MATCH_STORAGE_KEY
+  const matchDecoder = options?.decodeMatch ?? (decodeMatchEnvelope as Decoder<Envelope>)
   function read<Value>(key: string, decoder: Decoder<Value>): StorageReadResult<Value> {
     let raw: string | null
     try {
@@ -120,13 +124,14 @@ export function createStorageAdapter(acquire: () => KeyValueStorage): StorageAda
   }
 
   return {
-    readMatch: (decoder = decodeMatchEnvelope) => read(MATCH_STORAGE_KEY, decoder),
+    readMatch: (decoder = matchDecoder) => read(matchKey, decoder),
     readSettings: () => read(SETTINGS_STORAGE_KEY, decodeSettingsEnvelope),
-    writeMatch: (envelope) => write(MATCH_STORAGE_KEY, envelope),
+    writeMatch: (envelope) => write(matchKey, envelope),
     writeSettings: (envelope) => write(SETTINGS_STORAGE_KEY, envelope),
-    removeMatch: () => remove(MATCH_STORAGE_KEY),
+    removeMatch: () => remove(matchKey),
     removeSettings: () => remove(SETTINGS_STORAGE_KEY),
   }
 }
 
 export { decodeReplayMatchEnvelope } from './replay'
+export { createConnectFourStorageAdapter, decodeConnectFourMatchEnvelope } from './connect-four'

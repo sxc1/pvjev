@@ -1,0 +1,23 @@
+.cf-board-widget { display: grid; justify-items: center; gap: .75rem; width: min(100%, 32rem); }
+.cf-column-labels { display: grid; grid-template-columns: repeat(7, 1fr); margin-left: 1.5rem; width: calc(100% - 1.5rem); text-align: center; font-weight: 700; }
+.cf-board-row { display: flex; align-items: stretch; width: 100%; }
+.cf-row-labels { display: grid; grid-template-rows: repeat(6, 1fr); width: 1.5rem; flex: none; align-items: center; text-align: center; font-weight: 700; }
+.cf-board { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(6, 1fr); width: calc(100% - 1.5rem); aspect-ratio: 7 / 6; background: #164ea9; border: .35rem solid #164ea9; border-radius: .6rem; touch-action: none; user-select: none; }
+.cf-cell { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; padding: 7%; border: 1px solid #164ea9; background: #e8edf6; border-radius: 50%; cursor: pointer; }
+.cf-cell:disabled { cursor: default; }
+.cf-cell:focus-visible { outline: 3px solid #111; outline-offset: -3px; z-index: 2; }
+.cf-piece { display: block; width: 100%; height: 100%; border-radius: 50%; background: transparent; }
+.cf-cell-red .cf-piece, .cf-piece-red { background: #d22936; }
+.cf-cell-yellow .cf-piece, .cf-piece-yellow { background: #ffd434; }
+.cf-cell-latest { box-shadow: inset 0 0 0 3px #1176e8; }
+.cf-cell-selected { box-shadow: inset 0 0 0 3px #a33be0; }
+.cf-cell-win .cf-piece { animation: cf-pending-pulse 1.8s ease-in-out infinite; }
+.cf-piece-held { opacity: .58; }
+.cf-piece-pending { animation: cf-pending-pulse 1.8s ease-in-out infinite; }
+@keyframes cf-pending-pulse { 0%, 100% { opacity: .25; } 50% { opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { .cf-piece-pending { animation: none; opacity: .55; } .cf-cell-win .cf-piece { animation: none; } }
+@media (max-width: 560px) {
+  .cf-column-labels { margin-left: 1rem; width: calc(100% - 1rem); }
+  .cf-row-labels { width: 1rem; font-size: .8rem; }
+  .cf-board { width: calc(100% - 1rem); border-width: .2rem; }
+}

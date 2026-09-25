@@ -89,6 +89,8 @@ export function transition(snapshot: TicTacToeSnapshot, command: TicTacToeComman
     case 'set-confirm-moves':
       if (typeof command.enabled !== 'boolean') return ignored(snapshot)
       return applied({ ...snapshot, settings: { confirmMoves: command.enabled }, view: { ...view, pendingCell: null } }, 'settings')
+    case 'clear-transient':
+      return view.pendingCell === null && !view.resignationDialogOpen ? ignored(snapshot) : applied({ ...snapshot, view: { ...view, pendingCell: null, resignationDialogOpen: false } })
     case 'set-mobile-history-open':
       return typeof command.open === 'boolean' ? applied({ ...snapshot, view: { ...view, mobileHistoryOpen: command.open } }) : ignored(snapshot)
     case 'retry-cpu':

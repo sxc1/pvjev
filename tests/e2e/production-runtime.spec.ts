@@ -19,7 +19,8 @@ function watchProductionRuntime(page: Page) {
   page.on('request', request => {
     const url = new URL(request.url())
     if (url.origin !== 'http://127.0.0.1:4173' ||
-      (url.pathname !== '/pvjev/' && !url.pathname.startsWith('/pvjev/assets/'))) {
+      (url.pathname !== '/pvjev/' && !url.pathname.startsWith('/pvjev/assets/') &&
+        !['/pvjev/sxc1-logo.png', '/pvjev/tictactoe-x.svg', '/pvjev/tictactoe-o.svg'].includes(url.pathname))) {
       unexpectedRequests.push(request.url())
     }
   })

@@ -1,5 +1,6 @@
 export * from './game'
 export * from './tic-tac-toe'
+export * from './connect-four'
 export * from './application'
 export * from './persistence'
 export * from './presentation'

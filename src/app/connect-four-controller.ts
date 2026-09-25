@@ -1,0 +1,153 @@
+import type { ConnectFourController, ConnectFourControllerDependencies, ConnectFourMatch, ConnectFourSnapshot, RequestToken } from '../contracts'
+import { CONNECT_FOUR_SCHEMA_VERSION } from '../contracts/persistence'
+import { createAttemptResources, createRequestToken, sameRequestToken, type AttemptResources } from '../cpu/requests'
+import { sampleLegalMove } from '../cpu/random'
+import { isLegalMove } from '../games/connect-four/rules'
+import { createConnectFourStorageAdapter } from '../storage'
+import { appendMove, emptySnapshot, humanPlayer, liveView, transition } from './connect-four-transitions'
+
+const FALLBACK_MESSAGE = 'CPU returned three invalid moves; a random legal move was used.'
+
+export function createConnectFourController(deps: ConnectFourControllerDependencies): ConnectFourController {
+  const storage = createConnectFourStorageAdapter(deps.storage)
+  const listeners = new Set<() => void>()
+  let snapshot = emptySnapshot()
+  let started = false
+  let disposed = false
+  let attempt: AttemptResources | null = null
+  let invalidSavedMatch = false
+
+  const publish = (next: ConnectFourSnapshot) => {
+    if (next === snapshot || disposed) return
+    snapshot = next
+    for (const listener of [...listeners]) listener()
+  }
+  const unsubscribeSettings = deps.settings.subscribe(() => {
+    const settings = deps.settings.getSnapshot()
+    if (settings !== snapshot.settings) publish({ ...snapshot, settings, view: { ...snapshot.view, pendingColumn: null } })
+  })
+  const addNotice = (kind: 'unavailable' | 'invalid-match', message: string) => {
+    publish({ ...snapshot, notices: [...snapshot.notices.filter(notice => notice.kind !== kind), { kind, message }] })
+  }
+  const writeResult = (result: { status: string; error?: string }) => {
+    if (result.status === 'unavailable') addNotice('unavailable', `Progress could not be saved. A reload may restore older data. ${result.error ?? ''}`.trim())
+  }
+  const saveMatch = (next: ConnectFourSnapshot) => next.match
+    ? storage.writeMatch({ schemaVersion: CONNECT_FOUR_SCHEMA_VERSION, match: next.match, recovery: { consecutiveInvalid: next.request.consecutiveInvalid } })
+    : { status: 'saved' as const }
+  const releaseAttempt = () => {
+    const old = attempt
+    attempt = null
+    old?.cancel()
+  }
+  const cpuTurn = (match: ConnectFourMatch | null = snapshot.match) =>
+    !!match && match.outcome.kind === 'ongoing' && match.position.nextPlayer !== humanPlayer(match.setup)
+  const current = (token: RequestToken) => {
+    const match = snapshot.match
+    return !disposed && attempt !== null && snapshot.request.status === 'pending' &&
+      sameRequestToken(snapshot.request.token, token) && match !== null && match.id === token.matchId &&
+      token.gameId === match.gameId && token.expectedPly === match.moves.length + 1 && cpuTurn(match)
+  }
+  const commitCpu = (column: number, diagnostic?: string) => {
+    const match = snapshot.match!
+    releaseAttempt()
+    const nextMatch = appendMove(match, column, 'cpu', diagnostic)
+    const next: ConnectFourSnapshot = { ...snapshot, match: nextMatch, request: { status: 'idle', consecutiveInvalid: 0 },
+      view: { ...snapshot.view, pendingColumn: null, resignationDialogOpen: nextMatch.outcome.kind === 'ongoing' && snapshot.view.resignationDialogOpen } }
+    const saved = saveMatch(next)
+    publish(next)
+    writeResult(saved)
+  }
+  const reconcile = () => {
+    if (!started || disposed || invalidSavedMatch || !cpuTurn()) return
+    if (attempt || snapshot.request.status === 'failed') return
+    const match = snapshot.match!
+    const token = createRequestToken({ gameId: match.gameId, matchId: match.id, expectedPly: match.moves.length + 1 }, deps.newId)
+    const resources = createAttemptResources(token, deps.scheduler)
+    attempt = resources
+    publish({ ...snapshot, request: { status: 'pending', token, startedAt: deps.scheduler.now(), retryAvailable: false, consecutiveInvalid: snapshot.request.consecutiveInvalid } })
+    if (!current(token)) return
+    resources.scheduleRetryAfter(timerToken => {
+      if (!current(timerToken)) return
+      publish({ ...snapshot, request: { ...snapshot.request, retryAvailable: true } as ConnectFourSnapshot['request'] })
+    })
+    const legalMoves = [...deps.rules.legalMoves(match.position)]
+    const position = { ...match.position, board: [...match.position.board], columns: [...match.position.columns], winningLines: match.position.winningLines.map(line => [...line]) }
+    try {
+      Promise.resolve(deps.cpu.chooseMove({ position, legalMoves, signal: resources.signal }))
+        .then(value => handleSuccess(token, value), error => handleFailure(token, error))
+    } catch (error) { handleFailure(token, error) }
+  }
+  const handleInvalid = (token: RequestToken) => {
+    if (!current(token)) return
+    const count = snapshot.request.consecutiveInvalid + 1
+    releaseAttempt()
+    if (count === 3) {
+      commitCpu(sampleLegalMove(deps.rules.legalMoves(snapshot.match!.position), deps.random), FALLBACK_MESSAGE)
+      return
+    }
+    const next: ConnectFourSnapshot = { ...snapshot, request: { status: 'idle', consecutiveInvalid: count } }
+    const saved = saveMatch(next)
+    publish(next)
+    writeResult(saved)
+    reconcile()
+  }
+  const handleFailure = (token: RequestToken, error: unknown) => {
+    if (!current(token)) return
+    const count = snapshot.request.consecutiveInvalid
+    releaseAttempt()
+    publish({ ...snapshot, request: { status: 'failed', token, error: error instanceof Error ? error.message : String(error), retryAvailable: true, consecutiveInvalid: count } })
+  }
+  const handleSuccess = (token: RequestToken, result: unknown) => {
+    if (!current(token)) return
+    const candidate = typeof result === 'object' && result !== null ? (result as { move?: unknown }).move : undefined
+    if (!isLegalMove(snapshot.match!.position, candidate)) { handleInvalid(token); return }
+    commitCpu(candidate)
+  }
+  const start = () => {
+    if (started || disposed) return
+    started = true
+    publish({ ...snapshot, settings: deps.settings.getSnapshot() })
+    const saved = storage.readMatch()
+    if (saved.status === 'valid') publish({ ...snapshot, match: saved.value.match, setup: saved.value.match.setup, view: liveView(), request: { status: 'idle', consecutiveInvalid: saved.value.recovery.consecutiveInvalid } })
+    else if (saved.status === 'invalid') { invalidSavedMatch = true; addNotice('invalid-match', `${saved.reason} Choose Start fresh to replace it.`) }
+    else if (saved.status === 'unavailable') addNotice('unavailable', `Match could not be loaded. ${saved.error}`)
+    reconcile()
+  }
+  const dispatch: ConnectFourController['dispatch'] = command => {
+    if (!started || disposed) return { status: 'ignored', reason: 'not-ready' }
+    if (command.type === 'start-fresh') {
+      if (!invalidSavedMatch) return { status: 'ignored', reason: 'illegal' }
+      invalidSavedMatch = false
+      releaseAttempt()
+      publish({ ...snapshot, match: null, view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 }, notices: snapshot.notices.filter(notice => notice.kind !== 'invalid-match') })
+      writeResult(storage.removeMatch())
+      return { status: 'applied' }
+    }
+    if (invalidSavedMatch && (command.type === 'start-game' || command.type === 'restart')) return { status: 'ignored', reason: 'not-ready' }
+    if (command.type === 'retry-cpu') {
+      if (!cpuTurn() || (snapshot.request.status !== 'failed' && (snapshot.request.status !== 'pending' || !snapshot.request.retryAvailable))) return { status: 'ignored', reason: 'illegal' }
+      const count = snapshot.request.consecutiveInvalid
+      releaseAttempt()
+      publish({ ...snapshot, request: { status: 'idle', consecutiveInvalid: count } })
+      reconcile()
+      return { status: 'applied' }
+    }
+    const newMatchId = (command.type === 'start-game' && !snapshot.match) || (command.type === 'restart' && snapshot.match?.moves.length === 0) ? deps.newId() : undefined
+    const outcome = transition(snapshot, command, newMatchId)
+    if (outcome.result.status === 'ignored') return outcome.result
+    if (outcome.snapshot.match !== snapshot.match && attempt) releaseAttempt()
+    const saved = outcome.persistence === 'match' ? saveMatch(outcome.snapshot)
+      : outcome.persistence === 'remove-match' ? storage.removeMatch() : null
+    publish(outcome.snapshot)
+    if (saved) writeResult(saved)
+    reconcile()
+    return outcome.result
+  }
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    dispatch, start,
+    dispose: () => { if (disposed) return; disposed = true; releaseAttempt(); unsubscribeSettings(); listeners.clear() },
+  }
+}
