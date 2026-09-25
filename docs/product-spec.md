@@ -16,7 +16,7 @@ This document defines shared behavior. Game-specific rules and interactions belo
 | --- | --- |
 | v0.5 | Playable tic tac toe with random legal CPU moves. Establish the shared application, CPU abstraction, review flow, and local persistence. Show all three game tabs, with unimplemented games disabled. |
 | v1 | Public, browser-only demo hosted on GitHub Pages. Connect Four, chess, and Jev integration are sequential additions; their implementation order and release boundaries will be determined as challenges arise. No fixed sequence beyond tic tac toe first is committed. |
-| v2 | Add whitelist-based Google authentication, stored per-user win/loss totals, and global win/loss totals against Jev. Do not store detailed completed-match histories. Backend and data design are deferred. |
+| v2 | Add whitelist-based Google authentication, stored per-user win/loss totals, global win/loss totals against Jev, and a shared private TypeSafe key behind a relay service or minimal backend. Do not store detailed completed-match histories. Backend and data design are deferred. |
 
 Jev-specific requirements apply when that provider is implemented, not to the RNG-only milestone. Each game becomes enabled when its implementation is available.
 
@@ -25,8 +25,8 @@ Jev-specific requirements apply when that provider is implemented, not to the RN
 1. Use a React SPA hosted on GitHub Pages, with no application backend in v1.
 2. Support desktop browsers at 1080p and 1440p, and mobile browsers on modern iPhones and Android devices.
 3. Provide touch-friendly controls and layouts. Dedicated keyboard gameplay/navigation is not required; ordinary controls retain standard browser behavior.
-4. Offer public access without authentication in v1.
-5. Cap the public demo's Jev spending at $5. Direct browser access and provider-side cap feasibility are accepted assumptions for planning; the enforcement mechanism is deferred to [jev-spec.md](jev-spec.md). Do not treat local browser counters as an enforceable global cap.
+4. Offer public access without application authentication in v1. Visitors supply their own TypeSafe API keys to use Jev.
+5. The proposed global $5 Jev spending cap is deferred. Browser credentials and direct-access requirements are specified in [jev-spec.md](jev-spec.md).
 6. Assume one browser tab actively controls a match. Cross-tab synchronization is outside v1 scope.
 7. Exact browser-version coverage and responsive breakpoints are implementation decisions within these device targets.
 
@@ -77,15 +77,15 @@ The child specs define how board clicks distinguish play from inspection, what c
 3. Associate responses with a match identifier, turn number, and request-attempt identifier.
 4. Only the current request for the current live position may apply a move. Discard superseded responses and responses belonging to abandoned matches.
 5. A CPU response received during historical review updates and saves the live match without moving the user's historical selection. The user explicitly returns to the live position.
-6. Restoring a saved match on the CPU's turn automatically issues another CPU request. v1 accepts the possible extra paid request to simplify recovery.
+6. Restoring a saved match on the CPU's turn automatically issues another CPU request once the provider is ready. If Jev needs key re-entry after refresh, preserve the turn and resume automatically after the visitor supplies the key. v1 accepts the possible extra paid request to simplify recovery.
 
 ### 5.2 Manual retry and service failures
 
-1. If no response arrives within five seconds, display a manual Retry button. Five seconds is a retry-availability threshold, not an automatic retry or timeout.
+1. A Jev product attempt has a separate five-second client-side deadline covering its entire SDK call and internal retries. Expiry cancels the call and counts as one service failure. The RNG milestone retains its five-second Retry availability threshold without canceling its local provider request.
 2. A manual retry supersedes the previous attempt. Only the latest attempt may apply a move.
-3. An explicit request failure immediately displays an error and offers Retry.
+3. A failed product attempt displays an error and offers Retry unless the third-service-failure fallback applies. Internal SDK retries remain part of the same pending attempt.
 4. Manual retries and service failures do not count toward the consecutive-invalid-move limit.
-5. Detailed network timeouts and any eventual RNG fallback after service failures remain open in [jev-spec.md](jev-spec.md).
+5. Three consecutive Jev service failures trigger a legal RNG fallback with no Jev analysis. Authentication errors count toward this limit; rate-limit and authentication failures show toasts. A successful Jev move resets the service-failure count. SDK retry settings and counter handling are specified in [jev-spec.md](jev-spec.md).
 
 ### 5.3 Invalid CPU moves
 
@@ -105,11 +105,11 @@ Jev-specific handling is detailed in [jev-spec.md](jev-spec.md).
 3. Review is read-only. Users cannot branch, resume play from an old position, or undo moves.
 4. Historical review remains available after completion until the match is replaced.
 5. Move selection through both played pieces and history entries must provide access to the associated Jev response where applicable. Exact mapping, including human moves and repeatedly moved chess pieces, is defined in each game spec.
-6. Optional CPU analysis contains only Jev's scoring/ranking of move choices on its turn, truncated to the top ten. Evaluate all legal choices before truncating results for display and retention.
+6. Jev move history displays decision confidence, and optional analysis shows Choice classification probabilities ranked and truncated to the top ten. Evaluate all legal choices before truncating results for display and retention. Display values to three decimal places and show a tie caution beside confidence when applicable.
 7. Save the original retained analysis with its move. Reopening it does not call Jev again.
 8. RNG moves have no Jev analysis and are labeled accordingly. Any development-only mock analysis must be clearly identified as mock data.
 
-Score semantics, ranking, and ties are deferred to [jev-spec.md](jev-spec.md). Historical position selection and notation are deferred to [tic-tac-toe-spec.md](tic-tac-toe-spec.md), [connect-four-spec.md](connect-four-spec.md), and [chess-spec.md](chess-spec.md).
+Score semantics, ranking, and ties are specified in [jev-spec.md](jev-spec.md). Historical position selection and notation are defined in [tic-tac-toe-spec.md](tic-tac-toe-spec.md), [connect-four-spec.md](connect-four-spec.md), and [chess-spec.md](chess-spec.md).
 
 ## 7. Local persistence
 
@@ -141,19 +141,19 @@ Apply each criterion when the relevant game or provider is implemented.
 3. Implemented games enforce correct rules, never apply illegal moves, and identify their valid end states.
 4. Side/first-player selection, untimed play, and the shared action button follow the specified behavior.
 5. Moves submit without extra confirmation by default; enabling the setting adds confirmation. Resignation always requires confirmation; restart/rematch never do.
-6. Switching games and refreshing preserve each current match when local storage is available. Refresh on a CPU turn requests a new response automatically.
+6. Switching games and refreshing preserve each current match when local storage is available. Refresh on a CPU turn requests a new response automatically once any required Jev key is supplied.
 7. History selection and left/right controls show the correct saved positions without altering live play. Returning to current restores the latest live position.
 8. Desktop review keeps the board visible; mobile controls and history are usable on the target devices.
 9. Thinking, delayed-response retry, and explicit-error states follow section 5. Superseded responses never apply a move.
-10. Three consecutive invalid CPU responses trigger a legal RNG fallback. Jev fallback records the required exact message and has no Jev analysis.
+10. Three consecutive invalid CPU responses trigger a legal RNG fallback. Jev invalid-response fallback records the required exact message and has no Jev analysis. Three consecutive Jev service failures also trigger fallback, with a distinct service-failure diagnostic.
 11. Jev analysis shows and retains at most ten ranked choices from an evaluation of all legal moves. Reopening analysis sends no request.
 12. A completed match is reviewable until replaced, with no archive of previous matches.
 
-Game-specific rule acceptance criteria will be expanded in each child spec. No benchmark win rate or numerical latency target is currently required.
+Game-specific rule acceptance criteria will be expanded in each child spec. No benchmark win rate is required. Jev's five-second deadline limits client waiting and does not guarantee a successful response within that time.
 
 ## 10. Out of scope for v1
 
-1. Accounts, authentication, whitelist management, and backend storage.
+1. Application accounts, application authentication, whitelist management, backend storage, and a shared-key Jev relay. Visitor-supplied TypeSafe credentials are part of v1 Jev access.
 2. Multiplayer.
 3. User/global win-loss statistics.
 4. Completed-match libraries and detailed match archives.
@@ -163,12 +163,12 @@ Game-specific rule acceptance criteria will be expanded in each child spec. No b
 
 ## 11. Assumptions and deferred decisions
 
-1. Browser-only Jev access and a hard $5 spending cap are accepted planning assumptions pending integration details in [jev-spec.md](jev-spec.md).
+1. v1 uses visitor-supplied Jev keys in the browser; direct access from the deployed origin must be verified before public Jev enablement. The global $5 spending cap is deferred.
 2. The order of Connect Four, chess, and Jev implementation is intentionally flexible after v0.5.
 3. Local-storage failure behavior in section 7 is a proposed default requiring confirmation.
 4. Precise mobile panel placement, responsive breakpoints, and visual styling are implementation decisions.
 5. Unresolved game rules and interactions remain in the child specs; they do not imply additional committed features.
-6. v2 authentication, statistics, and backend details require a later specification.
+6. v2 authentication, statistics, and the shared private Jev key with relay service or minimal backend require a later specification.
 
 ## 12. Supporting specifications and outline reference
 
