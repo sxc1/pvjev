@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
 import type { GameId, TicTacToeCommand, TicTacToeScreenProps, TicTacToeSnapshot } from '../contracts'
 import { TicTacToeSymbol } from './TicTacToeSymbol'
-import { AppShell, MatchAction, ResignationDialog } from './AppShell'
+import { AppShell, ResignationDialog } from './AppShell'
+import { PlayAreaHeader } from './PlayAreaHeader'
+import { selectTicTacToePresentation } from '../games/tic-tac-toe/selectors'
 
 export interface TicTacToeShellProps extends TicTacToeScreenProps {
   /** T8 supplies game-specific board and history widgets here. */
@@ -36,12 +38,12 @@ function matchStatus(snapshot: TicTacToeSnapshot): { label: string; tone: string
 export function TicTacToeScreen({ snapshot, dispatch, board, history, onSelectGame }: TicTacToeShellProps) {
   const action = matchAction(snapshot)
   const status = snapshot.match ? matchStatus(snapshot) : null
+  const presentation = selectTicTacToePresentation(snapshot)
   const invalidMatch = snapshot.notices.some((notice) => notice.kind === 'invalid-match')
 
   return (
     <AppShell selectedGame="tic-tac-toe" onSelectGame={onSelectGame} settings={snapshot.settings} onConfirmMoves={enabled => dispatch({ type: 'set-confirm-moves', enabled })}>
       <main className="pv-main">
-        {action && <MatchAction label={action.label} onClick={() => dispatch(action.command)} />}
 
         {snapshot.notices.map((notice, index) => (
           <div className="pv-notice" role="status" key={`${notice.kind}-${index}`}>
@@ -69,7 +71,13 @@ export function TicTacToeScreen({ snapshot, dispatch, board, history, onSelectGa
         ) : (
           <div className="pv-play-layout">
             <section className="pv-board-panel pv-card" aria-label="Tic Tac Toe board">
-              <p className={`pv-board-status pv-board-status-${status!.tone}`} role="status" aria-live="polite">{status!.label}</p>
+              <PlayAreaHeader action={action!.label as 'Resign' | 'Restart' | 'Rematch'} status={status!.label} tone={status!.tone}
+                reviewing={presentation!.reviewing} canGoBack={presentation!.canGoBack} canGoForward={presentation!.canGoForward}
+                canReview={presentation!.entries.length > 0} onAction={() => dispatch(action!.command)}
+                onBack={() => dispatch({ type: 'navigate-history', direction: 'back' })}
+                onForward={() => dispatch({ type: 'navigate-history', direction: 'forward' })}
+                onReview={() => dispatch({ type: 'select-history', ply: presentation!.entries.length })}
+                onReturn={() => dispatch({ type: 'return-to-current' })} />
               {board ?? <div className="pv-widget-placeholder">Board</div>}
               {snapshot.request.status === 'failed' && <div className="pv-error" role="alert"><p>{snapshot.request.error}</p></div>}
               {snapshot.request.status !== 'idle' && snapshot.request.retryAvailable && (

@@ -1,10 +1,10 @@
-import { Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { ConnectFourCommand, ConnectFourSnapshot, GameId } from '../contracts'
 import { selectConnectFourPresentation } from '../games/connect-four/selectors'
-import { AppShell, MatchAction, ResignationDialog } from './AppShell'
+import { AppShell, ResignationDialog } from './AppShell'
 import { ConnectFourBoard } from './ConnectFourBoard'
 import { ConnectFourHistory } from './ConnectFourHistory'
+import { PlayAreaHeader } from './PlayAreaHeader'
 import './connect-four-screen.css'
 
 export interface ConnectFourScreenProps {
@@ -45,7 +45,6 @@ export function ConnectFourScreen({ snapshot, dispatch, onConfirmMoves, onSelect
   return <AppShell selectedGame="connect-four" onSelectGame={onSelectGame} settings={snapshot.settings}
     onConfirmMoves={onConfirmMoves}>
     <main className="pv-main">
-      {action && <MatchAction label={action.label} onClick={() => dispatch(action.command)} />}
       {snapshot.notices.map((notice, index) => <div className="pv-notice" role="status" key={`${notice.kind}-${index}`}>
         <span>{notice.message}</span>
         {notice.kind === 'invalid-match' && <button className="pv-button pv-button-secondary" type="button" onClick={() => dispatch({ type: 'start-fresh' })}>Start fresh</button>}
@@ -72,16 +71,18 @@ export function ConnectFourScreen({ snapshot, dispatch, onConfirmMoves, onSelect
           onClick={() => dispatch({ type: 'start-game' })}>Start game</button></div>
       </section> : <div className="pv-play-layout">
         <section className="pv-board-panel pv-card cf-board-panel" aria-label="Connect Four board">
-          <p className={`pv-board-status pv-board-status-${liveStatus!.tone}`} role="status" aria-live="polite">{liveStatus!.label}</p>
-          <button className="pv-button pv-button-secondary cf-review-toggle" type="button" aria-label={reviewing ? 'Exit review' : 'Review moves'}
-            aria-pressed={reviewing} onClick={() => dispatch({ type: 'toggle-review' })}><Search aria-hidden="true" />{reviewing ? 'Exit review' : 'Review moves'}</button>
+          <PlayAreaHeader action={action!.label as 'Resign' | 'Restart' | 'Rematch'} status={liveStatus!.label} tone={liveStatus!.tone}
+            reviewing={reviewing} canGoBack={presentation!.canGoBack} canGoForward={presentation!.canGoForward} canReview
+            onAction={() => dispatch(action!.command)} onBack={() => dispatch({ type: 'navigate-history', direction: 'back' })}
+            onForward={() => dispatch({ type: 'navigate-history', direction: 'forward' })}
+            onReview={() => dispatch({ type: 'toggle-review' })} onReturn={() => dispatch({ type: 'return-to-current' })} />
           {board ?? (presentation && <ConnectFourBoard snapshot={snapshot} position={presentation.position} dispatch={dispatch}
             selectedCell={presentation.selectedCell} latestCell={presentation.latestCell} winningCells={presentation.winningCells} />)}
           {snapshot.request.status === 'failed' && <div className="pv-error" role="alert"><p>{snapshot.request.error}</p></div>}
           {snapshot.request.status !== 'idle' && snapshot.request.retryAvailable && <button className="pv-button pv-button-secondary" type="button"
             onClick={() => dispatch({ type: 'retry-cpu' })}>Retry CPU move</button>}
         </section>
-        <aside className="pv-history-panel pv-card cf-history-panel" aria-label="Move history and inspection">
+        <aside className="pv-history-panel pv-card" aria-label="Move history and inspection">
           {history ?? <ConnectFourHistory snapshot={snapshot} dispatch={dispatch} />}
         </aside>
       </div>}

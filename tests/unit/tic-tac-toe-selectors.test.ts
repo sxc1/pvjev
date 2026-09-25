@@ -75,8 +75,8 @@ describe('T8 historical selectors and widgets', () => {
     const current = snapshot(cpuTurnMatch, 1)
     const markup = renderToStaticMarkup(createElement(TicTacToeHistory, { snapshot: { ...current, view: { ...current.view, mobileHistoryOpen: true } }, dispatch: () => undefined }))
     expect(markup).toContain('aria-expanded="true"')
-    expect(markup).toContain('ttt-history-expanded')
-    expect(markup).toContain('Return to current')
+    expect(markup).toContain('pv-history-expanded')
+    expect(markup).not.toContain('Return to current')
     expect(markup).toContain('Reviewing 1x A3')
     expect(markup).not.toContain('score')
     const empty = selectTicTacToePresentation(snapshot({ ...cpuTurnMatch, moves: [], position: { board: [null, null, null, null, null, null, null, null, null], nextSymbol: 'X', outcome: { kind: 'ongoing' }, winningLines: [] } }))!

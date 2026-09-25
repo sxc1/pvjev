@@ -51,10 +51,6 @@ export function AppShell({ children, selectedGame = 'tic-tac-toe', onSelectGame,
   </div>
 }
 
-export function MatchAction({ label, onClick }: { readonly label: string; readonly onClick: () => void }) {
-  return <div className="pv-match-actions"><button className="pv-button pv-button-secondary" type="button" onClick={onClick}>{label}</button></div>
-}
-
 export function ResignationDialog({ open, onCancel, onConfirm }: { readonly open: boolean; readonly onCancel: () => void; readonly onConfirm: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const priorFocus = useRef<HTMLElement | null>(null)

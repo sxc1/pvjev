@@ -52,10 +52,10 @@ describe('T5 shell fixtures', () => {
 
   it('switches match action from Resign to Rematch and shows terminal result', () => {
     const active = html({ ...base, match: humanTurnMatch })
-    expect(active).toContain('>Resign</button>')
+    expect(active).toContain('aria-label="Resign"')
     expect(active).toContain('>Your turn</p>')
     const terminal = html({ ...base, match: wonMatch })
-    expect(terminal).toContain('>Rematch</button>')
+    expect(terminal).toContain('aria-label="Rematch"')
     expect(terminal).toContain('>Victory</p>')
     expect(html({ ...base, match: { ...wonMatch, humanSymbol: 'O' } })).toContain('>Defeat</p>')
     expect(html({ ...base, match: resignedMatch })).toContain('>Defeat</p>')

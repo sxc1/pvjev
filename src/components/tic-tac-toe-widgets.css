@@ -13,29 +13,5 @@
 .ttt-cell-reviewed { box-shadow: inset 0 0 0 5px #f5cd52; }
 .ttt-preview { display: flex; flex-direction: column; align-items: center; gap: .15rem; animation: ttt-preview-pulse 1.8s ease-in-out infinite; }
 .ttt-preview-label { font-size: clamp(.58rem, 2vw, .8rem); font-weight: 650; letter-spacing: .01em; }
-.ttt-board-note { margin: 0; color: var(--warning); text-align: center; }
-.ttt-history-widget { width: 100%; min-width: 0; }
-.ttt-history-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.ttt-history-heading { margin-bottom: 1rem; }
-.ttt-history-heading h2 { margin: 0; font-size: 1.25rem; }
-.ttt-mobile-toggle { display: none; }
-.ttt-history-controls { display: flex; gap: .6rem; }
-.ttt-history-controls > button { flex: 1; gap: .35rem; }
-.ttt-history-controls svg { width: 1.1rem; height: 1.1rem; }
-.ttt-empty-history { color: var(--muted-foreground); }
-.ttt-history-list { display: grid; gap: .5rem; margin: 1rem 0; padding: 0; list-style: none; }
-.ttt-history-entry { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; gap: .5rem; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--muted); color: var(--foreground); text-align: left; }
-.ttt-history-entry-selected { border-color: #f5cd52; box-shadow: inset 0 0 0 2px #f5cd52; }
-.ttt-history-entry span:last-child { color: var(--muted-foreground); }
-.ttt-inspection { margin: 1rem 0; padding: .8rem 1rem; border-left: 3px solid var(--warning); background: color-mix(in srgb, var(--warning) 10%, var(--card)); overflow-wrap: anywhere; }
-.ttt-inspection p { margin: .2rem 0; }
-.ttt-inspection-title { font-weight: 700; }
-.ttt-return { width: 100%; }
 @keyframes ttt-preview-pulse { 0%, 100% { opacity: .3; } 50% { opacity: .8; } }
 @media (prefers-reduced-motion: reduce) { .ttt-preview { animation: none; opacity: .55; } }
-@media (max-width: 899px) {
-  .ttt-mobile-toggle { display: inline-flex; }
-  .ttt-history-heading h2 { margin: 0; }
-  .ttt-history-content { display: none; padding-top: 1rem; }
-  .ttt-history-expanded { display: block; }
-}

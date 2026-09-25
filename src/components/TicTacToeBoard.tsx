@@ -25,7 +25,6 @@ export function TicTacToeBoard({ snapshot, dispatch }: TicTacToeScreenProps) {
       {presentation.canConfirm && (
         <button className="pv-button pv-button-primary" type="button" onClick={() => dispatch({ type: 'confirm-move' })}>Confirm move</button>
       )}
-      {presentation.reviewing && <p className="ttt-board-note">Historical board · move {presentation.reviewedMove?.ply}</p>}
     </div>
   )
 }

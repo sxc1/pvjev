@@ -57,7 +57,7 @@ test.describe('B4 responsive presentation', () => {
       if (viewport.width < 900) {
         await page.getByRole('button', { name: 'Show history' }).click()
       }
-      await page.locator('.ttt-history-entry').first().click()
+      await page.locator('.pv-history-entry').first().click()
       await expect(page.getByRole('group', { name: 'Historical Tic Tac Toe board' })).toBeVisible()
       const historicalBox = await page.getByRole('group', { name: 'Historical Tic Tac Toe board' }).boundingBox()
       expect(historicalBox).not.toBeNull()
@@ -69,11 +69,11 @@ test.describe('B4 responsive presentation', () => {
         await expect(toggle).toHaveAttribute('aria-expanded', 'true')
         await toggle.click()
         await expect(page.getByRole('button', { name: 'Show history' })).toHaveAttribute('aria-expanded', 'false')
-        await expect(page.locator('.ttt-history-entry').first()).toBeHidden()
+        await expect(page.locator('.pv-history-entry').first()).toBeHidden()
         await page.getByRole('button', { name: 'Show history' }).click()
-        await expect(page.locator('.ttt-history-entry').first()).toBeVisible()
+        await expect(page.locator('.pv-history-entry').first()).toBeVisible()
       } else {
-        await expect(page.locator('.ttt-history-entry').first()).toBeVisible()
+        await expect(page.locator('.pv-history-entry').first()).toBeVisible()
       }
 
       const undersized = await page.locator('button:visible:not(:disabled)').evaluateAll((buttons) =>
@@ -143,7 +143,7 @@ test.describe('B5 browser controls', () => {
     await expect(page.getByRole('button', { name: 'Rematch' })).toBeVisible()
     const showHistory = page.getByRole('button', { name: 'Show history' })
     if (await showHistory.isVisible()) await showHistory.click()
-    await page.locator('.ttt-history-entry').first().click()
+    await page.locator('.pv-history-entry').first().click()
     await expect(page.getByRole('button', { name: 'Rematch' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'C3, empty, unavailable' })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Return to current' })).toBeVisible()

@@ -36,7 +36,6 @@
 .pv-game-tab-current { border-color: var(--primary); background: var(--accent); color: var(--foreground); font-weight: 700; }
 .pv-game-tab:disabled { opacity: .52; }
 .pv-main { width: min(100% - 2rem, 1100px); margin: 0 auto; padding: clamp(1.25rem, 4vw, 3rem) 0 4rem; }
-.pv-match-actions { display: flex; justify-content: flex-end; margin-bottom: 1.4rem; }
 .pv-eyebrow { margin: 0 0 .5rem; color: var(--primary); font-size: .75rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
 .pv-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: .65rem 1rem; border: 1px solid transparent; border-radius: var(--radius-lg); font-weight: 650; text-align: center; }
 .pv-button-primary { background: var(--primary-alt); color: var(--primary-foreground); }
@@ -55,11 +54,28 @@
 .pv-setup-actions .pv-button-primary { flex: 1; }
 .pv-play-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(270px, .85fr); align-items: stretch; gap: 1.25rem; }
 .pv-board-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: clamp(1rem, 3vw, 2rem); }
+.pv-play-header { display: grid; grid-template-columns: 44px 44px minmax(0, 1fr) 44px; align-items: center; gap: .5rem; width: 100%; }
+.pv-play-header .pv-board-status { width: auto; min-width: 0; }
+.pv-return-current { width: 100%; min-width: 0; padding-inline: .35rem; white-space: nowrap; }
+.pv-play-header .pv-icon-button:disabled { opacity: .45; }
 .pv-board-status { width: min(100%, 490px); margin: 0; color: var(--foreground); font-size: clamp(1.15rem, 2vw, 1.5rem); font-weight: 700; line-height: 1.25; text-align: center; }
 .pv-board-status-victory { color: var(--primary-alt); }
 .pv-board-status-defeat { color: var(--destructive); }
 .pv-board-status-draw, .pv-board-status-waiting { color: var(--muted-foreground); }
-.pv-history-panel { display: flex; flex-direction: column; min-height: 430px; max-height: min(680px, calc(100svh - 190px)); overflow-y: auto; padding: clamp(1rem, 2vw, 1.5rem); }
+.pv-history-panel { display: flex; flex-direction: column; min-height: 430px; padding: clamp(1rem, 2vw, 1.5rem); }
+.pv-history-widget { width: 100%; min-width: 0; }
+.pv-history-heading { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+.pv-history-heading h2 { grid-column: 2; margin: 0; font-size: 1.25rem; text-align: center; }
+.pv-history-heading .pv-history-toggle { grid-column: 3; }
+.pv-history-toggle { display: none; }
+.pv-empty-history { color: var(--muted-foreground); }
+.pv-history-list { display: grid; grid-auto-rows: 44px; gap: .5rem; max-height: calc(8 * 44px + 7 * .5rem); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.pv-history-entry { display: flex; width: 100%; height: 44px; align-items: center; justify-content: space-between; gap: .5rem; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--muted); color: var(--foreground); text-align: left; }
+.pv-history-entry-selected { border-color: #f5cd52; box-shadow: inset 0 0 0 2px #f5cd52; }
+.pv-history-entry span:last-child { color: var(--muted-foreground); }
+.pv-inspection, .ttt-inspection { margin: 1rem 0 0; padding: .8rem 1rem; border-left: 3px solid var(--warning); background: color-mix(in srgb, var(--warning) 10%, var(--card)); overflow-wrap: anywhere; }
+.pv-inspection p, .ttt-inspection p { margin: .2rem 0; }
+.pv-inspection-title, .ttt-inspection-title { font-weight: 700; }
 .pv-widget-placeholder { display: grid; min-height: 300px; width: 100%; place-items: center; border: 1px dashed var(--border); border-radius: var(--radius-lg); color: var(--muted-foreground); }
 .pv-notice { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: .9rem 1rem; border: 1px solid var(--warning); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--warning) 13%, var(--card)); overflow-wrap: anywhere; }
 .pv-error { width: 100%; padding: .75rem 1rem; border-left: 3px solid var(--destructive); border-radius: .25rem; background: color-mix(in srgb, var(--destructive) 12%, var(--card)); overflow-wrap: anywhere; }
@@ -74,7 +90,7 @@
 
 @media (max-width: 899px) {
   .pv-play-layout { grid-template-columns: 1fr; }
-  .pv-history-panel { min-height: 0; max-height: none; overflow: visible; }
+  .pv-history-panel { min-height: 0; }
 }
 
 @media (max-width: 560px) {
@@ -82,6 +98,11 @@
   .pv-game-nav { grid-column: 1 / -1; grid-row: 2; }
   .pv-game-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .pv-game-tab { width: 100%; }
-  .pv-match-actions > .pv-button { width: 100%; }
   .pv-notice { align-items: stretch; flex-direction: column; }
+  .pv-play-header { gap: .25rem; }
+  .pv-play-header .pv-board-status { font-size: 1rem; }
+  .pv-return-current { font-size: .82rem; }
+  .pv-history-toggle { display: inline-grid; }
+  .pv-history-content { display: none; }
+  .pv-history-expanded { display: block; }
 }
