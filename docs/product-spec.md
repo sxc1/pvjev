@@ -16,8 +16,8 @@ This document defines shared behavior. Game-specific rules and interactions belo
 | --- | --- |
 | v0.1 | React SPA with playable tic tac toe and random legal CPU moves. Establish the shared application, CPU abstraction, review flow, and local persistence. Show all three game tabs, with unimplemented games disabled. |
 | v0.2 | Add playable Connect Four with a random legal CPU opponent. |
-| v0.3 | Add Google authentication and a minimal SQL database for player statistics. Detailed product behavior remains to be specified. |
-| Later | Chess and Jev integration. Release boundaries and detailed access and data policies remain to be specified. |
+| v0.3 | Add optional Google sign-in and a minimal Supabase SQL database for player identity and personal win/loss/draw totals. Show those totals in the app. |
+| Later | Chess and Jev integration. Jev access is limited by account eligibility as described below. Their release boundaries remain to be specified. |
 
 Jev-specific requirements apply when that provider is implemented, not to the RNG-only milestone. Each game becomes enabled when its implementation is available.
 
@@ -26,8 +26,8 @@ Jev-specific requirements apply when that provider is implemented, not to the RN
 1. Use a React SPA hosted on GitHub Pages, with no application backend in v0.1 or v0.2.
 2. Support desktop browsers at 1080p and 1440p, and mobile browsers on modern iPhones and Android devices.
 3. Provide touch-friendly controls and layouts. Dedicated keyboard gameplay/navigation is not required; ordinary controls retain standard browser behavior.
-4. Offer public access without application authentication in v0.1 and v0.2. Jev access policy remains to be specified.
-5. The proposed global $5 Jev spending cap is deferred. Browser credentials and direct-access requirements are specified in [jev-spec.md](jev-spec.md).
+4. Keep RNG play public. Starting in v0.3, Google sign-in is optional and affects personal statistics, not access to RNG play.
+5. The proposed global $5 Jev spending cap is deferred. Jev credential and delivery design remains to be specified in [jev-spec.md](jev-spec.md).
 6. Assume one browser tab actively controls a match. Cross-tab synchronization is outside the defined release scope.
 7. Exact browser-version coverage and responsive breakpoints are implementation decisions within these device targets.
 
@@ -49,7 +49,23 @@ Jev-specific requirements apply when that provider is implemented, not to the RN
 5. Detect and display wins, losses, and draws using the game's rules.
 6. No undo is available.
 
-### 4.3 Match action and confirmation
+### 4.3 Accounts and personal statistics (v0.3)
+
+1. Let visitors play without an account. Offer optional Google sign-in through Supabase.
+2. Store only account identity and aggregate win, loss, and draw counts in the SQL database. Keep separate totals for each game and each CPU opponent type. The opponent types are RNG and Jev; Jev totals remain zero until that provider is available.
+3. Name RNG result fields `win_rng`, `loss_rng`, and `draw_rng` (or equivalent `winRng` application fields). Keep distinct Jev fields so RNG results are not relabeled when Jev is introduced.
+4. Record a result when a match ends if the player is signed in at that time, including when they signed in during the match. Matches completed while signed out do not count retroactively.
+5. Show the signed-in player's totals by game and CPU opponent type. Statistics are personal progress; no public leaderboard or global totals are required.
+6. Keep current matches and settings in browser storage. Signing in does not transfer an existing match to the database or require resetting it. Existing local saves may be discarded during the v0.3 transition if necessary.
+
+### 4.4 Jev access when integrated
+
+1. Guests cannot use Jev. Signed-in accounts on the Jev whitelist can use Jev without the introductory game limit.
+2. A signed-in account outside the whitelist can play one Connect Four match against Jev per rolling 24-hour period. Store the account's last Jev game time in the database; if fewer than 24 hours have elapsed, use the RNG CPU instead.
+3. Count the Jev allowance when the match begins, so abandoning or refreshing a match does not grant another Jev match in the same period. Additional games during the period remain playable against RNG.
+4. The whitelist is an access rule for Jev, not a requirement for Google sign-in or RNG play.
+
+### 4.5 Match action and confirmation
 
 Use one action button with state-dependent behavior:
 
@@ -61,7 +77,7 @@ Use one action button with state-dependent behavior:
 
 Move confirmation is a separate user setting, disabled by default. With confirmation disabled, a valid move selection submits immediately. With confirmation enabled, the player explicitly confirms the selected move before submission. Persist this preference locally, separately from match data.
 
-### 4.4 Game-specific interactions
+### 4.6 Game-specific interactions
 
 The child specs define how board clicks distinguish play from inspection, what clicking a human move reveals, and how selected turns map to displayed positions. They also define move notation, turn labels, selection highlights, latest-move feedback, and legal-destination indicators where applicable:
 
@@ -142,13 +158,15 @@ Apply each criterion when the relevant game or provider is implemented.
 3. Implemented games enforce correct rules, never apply illegal moves, and identify their valid end states.
 4. Side/first-player selection, untimed play, and the shared action button follow the specified behavior.
 5. Moves submit without extra confirmation by default; enabling the setting adds confirmation. Resignation always requires confirmation; restart/rematch never do.
-6. Switching games and refreshing preserve each current match when local storage is available. Refresh on a CPU turn requests a new response automatically once any required Jev key is supplied.
+6. Switching games and refreshing preserve each current match when local storage is available. Refresh on a CPU turn requests a new response automatically once the provider is available.
 7. History selection and left/right controls show the correct saved positions without altering live play. Returning to current restores the latest live position.
 8. Desktop review keeps the board visible; mobile controls and history are usable on the target devices.
 9. Thinking, delayed-response retry, and explicit-error states follow section 5. Superseded responses never apply a move.
 10. Three consecutive invalid CPU responses trigger a legal RNG fallback. Jev invalid-response fallback records the required exact message and has no Jev analysis. Three consecutive Jev service failures also trigger fallback, with a distinct service-failure diagnostic.
 11. Jev analysis shows and retains at most ten ranked choices from an evaluation of all legal moves. Reopening analysis sends no request.
 12. A completed match is reviewable until replaced, with no archive of previous matches.
+13. In v0.3, signed-out visitors can play RNG games. Signed-in players see separate win/loss/draw totals by game and CPU type; results completed after sign-in count, including for a match started while signed out.
+14. When Jev is integrated, guests cannot select it; whitelisted accounts have access; other signed-in accounts receive one Connect Four game against Jev per rolling 24 hours and RNG play thereafter.
 
 Game-specific rule acceptance criteria will be expanded in each child spec. No benchmark win rate is required. Jev's five-second deadline limits client waiting and does not guarantee a successful response within that time.
 
@@ -156,7 +174,7 @@ Game-specific rule acceptance criteria will be expanded in each child spec. No b
 
 1. Application accounts, application authentication, whitelist management, backend storage, and a shared-key Jev relay. Authentication and database storage begin in v0.3.
 2. Multiplayer.
-3. User/global win-loss statistics.
+3. User/global win-loss statistics before v0.3. Public global totals remain outside the defined scope.
 4. Completed-match libraries and detailed match archives.
 5. Export features.
 6. Undo, historical branching, clocks, and selectable difficulty.
@@ -164,12 +182,12 @@ Game-specific rule acceptance criteria will be expanded in each child spec. No b
 
 ## 11. Assumptions and deferred decisions
 
-1. Jev access, credentials, and spending policy require a later specification. The global $5 spending cap is deferred.
+1. Jev access eligibility and introductory allowance are defined in section 4.4. Credential delivery and spending policy require a later specification. The global $5 spending cap is deferred.
 2. Connect Four is scheduled for v0.2. The order of chess and Jev implementation remains flexible.
 3. Local-storage failure behavior in section 7 is a proposed default requiring confirmation.
 4. Precise mobile panel placement, responsive breakpoints, and visual styling are implementation decisions.
 5. Unresolved game rules and interactions remain in the child specs; they do not imply additional committed features.
-6. v0.3 authentication and statistics require detailed product specification. Jev's shared private key and relay service or minimal backend remain deferred.
+6. v0.3 authentication and statistics are defined at product level in section 4.3. Jev's shared private key and relay service or minimal backend remain deferred.
 
 ## 12. Supporting specifications and outline reference
 
