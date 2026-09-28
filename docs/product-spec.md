@@ -14,20 +14,21 @@ This document defines shared behavior. Game-specific rules and interactions belo
 
 | Stage | Scope |
 | --- | --- |
-| v0.5 | Playable tic tac toe with random legal CPU moves. Establish the shared application, CPU abstraction, review flow, and local persistence. Show all three game tabs, with unimplemented games disabled. |
-| v1 | Public, browser-only demo hosted on GitHub Pages. Connect Four, chess, and Jev integration are sequential additions; their implementation order and release boundaries will be determined as challenges arise. No fixed sequence beyond tic tac toe first is committed. |
-| v2 | Add whitelist-based Google authentication, stored per-user win/loss totals, global win/loss totals against Jev, and a shared private TypeSafe key behind a relay service or minimal backend. Do not store detailed completed-match histories. Backend and data design are deferred. |
+| v0.1 | React SPA with playable tic tac toe and random legal CPU moves. Establish the shared application, CPU abstraction, review flow, and local persistence. Show all three game tabs, with unimplemented games disabled. |
+| v0.2 | Add playable Connect Four with a random legal CPU opponent. |
+| v0.3 | Add Google authentication and a minimal SQL database for player statistics. Detailed product behavior remains to be specified. |
+| Later | Chess and Jev integration. Release boundaries and detailed access and data policies remain to be specified. |
 
 Jev-specific requirements apply when that provider is implemented, not to the RNG-only milestone. Each game becomes enabled when its implementation is available.
 
 ## 3. Platforms, hosting, and constraints
 
-1. Use a React SPA hosted on GitHub Pages, with no application backend in v1.
+1. Use a React SPA hosted on GitHub Pages, with no application backend in v0.1 or v0.2.
 2. Support desktop browsers at 1080p and 1440p, and mobile browsers on modern iPhones and Android devices.
 3. Provide touch-friendly controls and layouts. Dedicated keyboard gameplay/navigation is not required; ordinary controls retain standard browser behavior.
-4. Offer public access without application authentication in v1. Visitors supply their own TypeSafe API keys to use Jev.
+4. Offer public access without application authentication in v0.1 and v0.2. Jev access policy remains to be specified.
 5. The proposed global $5 Jev spending cap is deferred. Browser credentials and direct-access requirements are specified in [jev-spec.md](jev-spec.md).
-6. Assume one browser tab actively controls a match. Cross-tab synchronization is outside v1 scope.
+6. Assume one browser tab actively controls a match. Cross-tab synchronization is outside the defined release scope.
 7. Exact browser-version coverage and responsive breakpoints are implementation decisions within these device targets.
 
 ## 4. Shared user experience and game lifecycle
@@ -77,7 +78,7 @@ The child specs define how board clicks distinguish play from inspection, what c
 3. Associate responses with a match identifier, turn number, and request-attempt identifier.
 4. Only the current request for the current live position may apply a move. Discard superseded responses and responses belonging to abandoned matches.
 5. A CPU response received during historical review updates and saves the live match without moving the user's historical selection. The user explicitly returns to the live position.
-6. Restoring a saved match on the CPU's turn automatically issues another CPU request once the provider is ready. If Jev needs key re-entry after refresh, preserve the turn and resume automatically after the visitor supplies the key. v1 accepts the possible extra paid request to simplify recovery.
+6. Restoring a saved match on the CPU's turn automatically issues another CPU request once the provider is ready. Jev-specific credential and recovery behavior remains to be specified.
 
 ### 5.2 Manual retry and service failures
 
@@ -136,7 +137,7 @@ Detailed provider behavior belongs in [jev-spec.md](jev-spec.md); game-specific 
 
 Apply each criterion when the relevant game or provider is implemented.
 
-1. v0.5 supports a complete tic tac toe match against a CPU that selects only legal random moves.
+1. v0.1 supports a complete tic tac toe match against a CPU that selects only legal random moves.
 2. All three tabs are visible; unimplemented games cannot be opened through their disabled tabs.
 3. Implemented games enforce correct rules, never apply illegal moves, and identify their valid end states.
 4. Side/first-player selection, untimed play, and the shared action button follow the specified behavior.
@@ -151,9 +152,9 @@ Apply each criterion when the relevant game or provider is implemented.
 
 Game-specific rule acceptance criteria will be expanded in each child spec. No benchmark win rate is required. Jev's five-second deadline limits client waiting and does not guarantee a successful response within that time.
 
-## 10. Out of scope for v1
+## 10. Out of scope for v0.1 and v0.2
 
-1. Application accounts, application authentication, whitelist management, backend storage, and a shared-key Jev relay. Visitor-supplied TypeSafe credentials are part of v1 Jev access.
+1. Application accounts, application authentication, whitelist management, backend storage, and a shared-key Jev relay. Authentication and database storage begin in v0.3.
 2. Multiplayer.
 3. User/global win-loss statistics.
 4. Completed-match libraries and detailed match archives.
@@ -163,12 +164,12 @@ Game-specific rule acceptance criteria will be expanded in each child spec. No b
 
 ## 11. Assumptions and deferred decisions
 
-1. v1 uses visitor-supplied Jev keys in the browser; direct access from the deployed origin must be verified before public Jev enablement. The global $5 spending cap is deferred.
-2. The order of Connect Four, chess, and Jev implementation is intentionally flexible after v0.5.
+1. Jev access, credentials, and spending policy require a later specification. The global $5 spending cap is deferred.
+2. Connect Four is scheduled for v0.2. The order of chess and Jev implementation remains flexible.
 3. Local-storage failure behavior in section 7 is a proposed default requiring confirmation.
 4. Precise mobile panel placement, responsive breakpoints, and visual styling are implementation decisions.
 5. Unresolved game rules and interactions remain in the child specs; they do not imply additional committed features.
-6. v2 authentication, statistics, and the shared private Jev key with relay service or minimal backend require a later specification.
+6. v0.3 authentication and statistics require detailed product specification. Jev's shared private key and relay service or minimal backend remain deferred.
 
 ## 12. Supporting specifications and outline reference
 

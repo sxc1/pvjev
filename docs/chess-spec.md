@@ -4,11 +4,11 @@ Status: Initial requirements and open questions. Shared behavior is defined in [
 
 ## Agreed requirements
 
-1. Display the game tab from v0.5, disabled until implemented. Schedule implementation after tic tac toe, with order relative to Connect Four and Jev determined later.
+1. Display the game tab from v0.1, disabled until implemented. Schedule implementation after tic tac toe, with order relative to Connect Four and Jev determined later.
 2. The player can choose their side and who moves first according to the game rules.
 3. Apply shared controls, confirmation preference, history review, local persistence, and CPU abstraction.
 4. Review is read-only with left/right navigation and a return-to-current action. Play is untimed with one difficulty.
-5. Export features are out of v1 scope.
+5. Export features are outside the defined release scope.
 
 ## Questions to resolve before implementation
 

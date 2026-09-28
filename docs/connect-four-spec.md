@@ -10,7 +10,7 @@ This document defines Connect Four rules, setup, input, notation, visual feedbac
 
 ## 2. Release scope
 
-1. Show the Connect Four tab from v0.5, disabled until the game is implemented. Implement it after tic tac toe; its order relative to chess and Jev remains flexible.
+1. Show the Connect Four tab from v0.1, disabled until the game is implemented. Implement it after tic tac toe; its order relative to chess and Jev remains flexible.
 2. The first playable version uses a CPU that chooses randomly among legal columns. Jev behavior applies when that provider is integrated.
 3. Include color and move-order selection, optional move confirmation, read-only history review, and local persistence.
 4. Falling-piece animation, multiplayer, undo, difficulty selection, and a completed-match archive are outside this scope.

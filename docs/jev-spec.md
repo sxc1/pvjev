@@ -13,8 +13,8 @@ The game rules determine legal moves and outcomes. Jev selects among the legal m
 1. Let visitors play against Jev and inspect the original decision behind each Jev move.
 2. Keep Jev separate from game rules and presentation through the shared CPU provider interface.
 3. Integrate Jev after the RNG tic tac toe milestone. Its order relative to Connect Four and chess remains flexible; each game adopts Jev when its integration is ready.
-4. v1 runs in the browser on GitHub Pages, with visitors supplying their own TypeSafe API keys. No application backend or application sign-in is required.
-5. v2 adds a shared private TypeSafe key behind a relay service or minimal backend. Provider credentials remain on that backend. Detailed design is deferred to v2.
+4. Jev integration is deferred beyond v0.3. Its access and credential policy requires a later specification.
+5. A shared private TypeSafe key behind a relay service or minimal backend is a deferred proposal. Provider credentials would remain on that backend.
 6. Defer the proposed global $5 spending cap.
 
 ## 3. Model and decision inputs
@@ -55,7 +55,7 @@ The game rules determine legal moves and outcomes. Jev selects among the legal m
 2. Keep the key in memory for the active page session. Do not include it in the published bundle, URL, saved match, retained analysis, logs, or browser persistent storage.
 3. Use the TypeSafe JavaScript SDK with its explicit browser opt-in and the visitor-supplied key.
 4. A missing key is a setup condition and does not count as a service failure. Preserve the match while waiting for key entry.
-5. When a saved match is restored on a CPU turn, automatically request its move once the key is available. After refresh, key re-entry may be necessary before resuming. A duplicate paid request after refresh is accepted for v1.
+5. When a saved match is restored on a CPU turn, automatically request its move once access is available. Credential and duplicate-request policy requires a later specification.
 6. Verify that a request from the deployed GitHub Pages origin succeeds, including browser CORS requirements, before enabling Jev publicly. SDK browser opt-in alone does not establish this.
 
 ## 7. Requests, retries, and RNG fallback
@@ -109,10 +109,10 @@ The game rules determine legal moves and outcomes. Jev selects among the legal m
 
 ## 10. Deferred work and implementation decisions
 
-1. v2 provides the shared private key and relay service or minimal backend; its access controls, deployment, and operational details need a later specification.
+1. A shared private key and relay service or minimal backend are deferred; access controls, deployment, and operational details need a later specification.
 2. The global $5 spending cap remains deferred.
 3. Exact prompts, criterion descriptions, serializers, move identifiers, validation tolerances, credential-entry layout, and toast and tooltip wording are implementation decisions within these requirements.
-4. No benchmark win rate or minimum model-quality target is required for v1.
+4. No benchmark win rate or minimum model-quality target is required for Jev integration.
 
 ## 11. References
 

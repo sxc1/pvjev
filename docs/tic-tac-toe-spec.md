@@ -10,9 +10,9 @@ This document defines game rules, setup, interactions, notation, visual feedback
 
 ## 2. Release scope
 
-1. v0.5 supports complete matches against a CPU choosing randomly among legal moves.
+1. v0.1 supports complete matches against a CPU choosing randomly among legal moves.
 2. Include side selection, optional move confirmation, read-only history review, and local persistence.
-3. When Jev is integrated, selecting a Jev move also displays its saved choice scores. Jev analysis is not required for v0.5.
+3. When Jev is integrated, selecting a Jev move also displays its saved choice scores. Jev analysis is not required for v0.1.
 4. Initially use cell background colors to mark winning lines. Image assets are a later enhancement.
 
 ## 3. Rules and match setup
