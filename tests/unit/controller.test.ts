@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTicTacToeController } from '../../src/app/controller'
-import type { ControllerDependencies, CpuChoice, TicTacToeController } from '../../src/contracts'
+import type { ControllerDependencies, CpuChoice, MatchCompletedEvent, TicTacToeController } from '../../src/contracts'
 import { MATCH_STORAGE_KEY } from '../../src/contracts/persistence'
 import { ticTacToeRules } from '../../src/games/tic-tac-toe/rules'
 
 type Deferred = { resolve(value: unknown): void; reject(reason: unknown): void; signal: AbortSignal }
 
-function harness(seed?: Map<string, string>) {
+function harness(seed?: Map<string, string>, options?: { onMatchCompleted?: (event: MatchCompletedEvent) => void; failSave?: boolean }) {
   const data = seed ?? new Map<string, string>()
   const requests: Deferred[] = []
   const calls: string[] = []
@@ -19,12 +19,13 @@ function harness(seed?: Map<string, string>) {
     }) },
     storage: () => ({
       getItem: key => data.get(key) ?? null,
-      setItem: (key, value) => { calls.push('save'); data.set(key, value) },
+      setItem: (key, value) => { calls.push('save'); if (options?.failSave) throw new Error('storage full'); data.set(key, value) },
       removeItem: key => { calls.push('remove'); data.delete(key) },
     }),
     scheduler: { now: () => Date.now(), setTimeout: (callback, ms) => setTimeout(callback, ms), clearTimeout: handle => clearTimeout(handle as number) },
     random: () => 0,
     newId: () => `id-${++ids}`,
+    onMatchCompleted: options?.onMatchCompleted,
   }
   const controller = createTicTacToeController(deps)
   controller.start()
@@ -37,6 +38,67 @@ const play = (controller: TicTacToeController, cell: number) => controller.dispa
 describe('controller lifecycle and CPU coordination', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
+
+  it('emits one human win after the local save attempt and excludes restore and rematch', async () => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(undefined, { onMatchCompleted: event => { expect(h.calls.at(-1)).toBe('save'); events.push(event) } })
+    h.controller.dispatch({ type: 'start-game' })
+    const id = h.controller.getSnapshot().match!.id
+    play(h.controller, 0); h.requests[0].resolve({ move: 1 }); await flush()
+    play(h.controller, 3); h.requests[1].resolve({ move: 2 }); await flush()
+    play(h.controller, 6)
+    expect(events).toEqual([{ gameId: 'tic-tac-toe', matchId: id, opponent: 'rng', result: 'win' }])
+    const restored = harness(h.data, { onMatchCompleted: event => events.push(event) })
+    restored.controller.dispatch({ type: 'select-history', ply: 3 })
+    restored.controller.dispatch({ type: 'return-to-current' })
+    restored.controller.dispatch({ type: 'rematch' })
+    expect(events).toHaveLength(1)
+    restored.controller.dispose(); h.controller.dispose()
+  })
+
+  it('emits resignation loss despite a failed local save', async () => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(undefined, { failSave: true, onMatchCompleted: event => { expect(h.calls.at(-1)).toBe('save'); events.push(event) } })
+    h.controller.dispatch({ type: 'start-game' })
+    play(h.controller, 0)
+    h.controller.dispatch({ type: 'open-resignation' })
+    h.controller.dispatch({ type: 'confirm-resignation' })
+    expect(events).toEqual([{ gameId: 'tic-tac-toe', matchId: h.controller.getSnapshot().match!.id, opponent: 'rng', result: 'loss' }])
+    expect(h.controller.getSnapshot().match?.outcome.kind).toBe('resignation')
+    h.controller.dispose()
+  })
+
+  it('maps a CPU terminal move to a human loss for O', async () => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(undefined, { onMatchCompleted: event => events.push(event) })
+    h.controller.dispatch({ type: 'select-side', symbol: 'O' })
+    h.controller.dispatch({ type: 'start-game' })
+    h.requests[0].resolve({ move: 0 }); await flush()
+    play(h.controller, 3)
+    h.requests[1].resolve({ move: 1 }); await flush()
+    play(h.controller, 4)
+    h.requests[2].resolve({ move: 2 }); await flush()
+    expect(events).toEqual([{ gameId: 'tic-tac-toe', matchId: h.controller.getSnapshot().match!.id, opponent: 'rng', result: 'loss' }])
+    h.controller.dispose()
+  })
+
+  it('emits a draw exactly once after the last human move', async () => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(undefined, { onMatchCompleted: event => { expect(h.calls.at(-1)).toBe('save'); events.push(event) } })
+    h.controller.dispatch({ type: 'start-game' })
+    play(h.controller, 0); h.requests[0].resolve({ move: 1 }); await flush()
+    play(h.controller, 2); h.requests[1].resolve({ move: 4 }); await flush()
+    play(h.controller, 3); h.requests[2].resolve({ move: 5 }); await flush()
+    play(h.controller, 7); h.requests[3].resolve({ move: 6 }); await flush()
+    expect(events).toHaveLength(0)
+    play(h.controller, 8)
+    expect(h.controller.getSnapshot().match?.outcome.kind).toBe('draw')
+    expect(events).toEqual([{ gameId: 'tic-tac-toe', matchId: h.controller.getSnapshot().match!.id, opponent: 'rng', result: 'draw' }])
+    h.controller.dispatch({ type: 'select-history', ply: 7 })
+    h.controller.dispatch({ type: 'return-to-current' })
+    expect(events).toHaveLength(1)
+    h.controller.dispose()
+  })
 
   it('saves before an O opening request and before every subsequent CPU request', async () => {
     const h = harness()

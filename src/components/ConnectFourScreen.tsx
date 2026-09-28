@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ConnectFourCommand, ConnectFourSnapshot, GameId } from '../contracts'
 import { selectConnectFourPresentation } from '../games/connect-four/selectors'
-import { AppShell, ResignationDialog } from './AppShell'
+import { AppShell, ResignationDialog, type AccountViewModel } from './AppShell'
 import { ConnectFourBoard } from './ConnectFourBoard'
 import { ConnectFourHistory } from './ConnectFourHistory'
 import { PlayAreaHeader } from './PlayAreaHeader'
@@ -12,6 +12,7 @@ export interface ConnectFourScreenProps {
   readonly dispatch: (command: ConnectFourCommand) => unknown
   readonly onConfirmMoves: (enabled: boolean) => void
   readonly onSelectGame?: (gameId: GameId) => void
+  readonly account?: AccountViewModel
   readonly board?: ReactNode
   readonly history?: ReactNode
 }
@@ -36,14 +37,14 @@ function matchAction(snapshot: ConnectFourSnapshot): { label: string; command: C
   return { label: 'Resign', command: { type: 'open-resignation' } }
 }
 
-export function ConnectFourScreen({ snapshot, dispatch, onConfirmMoves, onSelectGame, board, history }: ConnectFourScreenProps) {
+export function ConnectFourScreen({ snapshot, dispatch, onConfirmMoves, onSelectGame, board, history, account }: ConnectFourScreenProps) {
   const action = matchAction(snapshot)
   const liveStatus = snapshot.match ? status(snapshot) : null
   const presentation = selectConnectFourPresentation(snapshot)
   const invalidMatch = snapshot.notices.some(notice => notice.kind === 'invalid-match')
   const reviewing = snapshot.view.location.mode === 'review'
   return <AppShell selectedGame="connect-four" onSelectGame={onSelectGame} settings={snapshot.settings}
-    onConfirmMoves={onConfirmMoves}>
+    onConfirmMoves={onConfirmMoves} account={account}>
     <main className="pv-main">
       {snapshot.notices.map((notice, index) => <div className="pv-notice" role="status" key={`${notice.kind}-${index}`}>
         <span>{notice.message}</span>

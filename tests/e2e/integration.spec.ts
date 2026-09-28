@@ -7,7 +7,7 @@ test('plays as X, persists, reviews, resigns, and rematches', async ({ page }) =
   await page.getByRole('button', { name: /A3, empty/i }).click()
   await expect(page.locator('.pv-history-entry')).toHaveCount(2)
 
-  const mobileHistoryToggle = page.locator('.ttt-mobile-toggle')
+  const mobileHistoryToggle = page.getByRole('button', { name: 'Show history' })
   if (await mobileHistoryToggle.isVisible()) await mobileHistoryToggle.click()
   await page.locator('.pv-history-entry').first().click()
   await expect(page.locator('.ttt-inspection-title')).toContainText('Reviewing 1')

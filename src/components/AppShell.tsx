@@ -2,15 +2,30 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChessRook, Columns4, Settings, TicTacToe } from 'lucide-react'
 import type { GameId, Settings as AppSettings } from '../contracts'
 import { gameRegistry } from '../app/registry'
+import type { AuthSnapshot } from '../contracts/account'
+import type { StatisticsSnapshot } from '../contracts/statistics'
+import { AccountControls } from './AccountControls'
+import { PersonalStats } from './PersonalStats'
+import { ResultToast } from './ResultToast'
 
 const gameIcons = { 'tic-tac-toe': TicTacToe, 'connect-four': Columns4, chess: ChessRook }
 
-export function AppShell({ children, selectedGame = 'tic-tac-toe', onSelectGame, settings, onConfirmMoves }: {
+export interface AccountViewModel {
+  readonly auth: AuthSnapshot
+  readonly statistics: StatisticsSnapshot
+  readonly onSignIn: () => void
+  readonly onSignOut: () => void
+  readonly onRetryStats: () => void
+  readonly onDismissResultNotice: (id: string) => void
+}
+
+export function AppShell({ children, selectedGame = 'tic-tac-toe', onSelectGame, settings, onConfirmMoves, account }: {
   readonly children: ReactNode
   readonly selectedGame?: GameId
   readonly onSelectGame?: (gameId: GameId) => void
   readonly settings: AppSettings
   readonly onConfirmMoves: (enabled: boolean) => void
+  readonly account?: AccountViewModel
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(() => typeof document === 'undefined' || document.documentElement.classList.contains('dark'))
@@ -38,6 +53,8 @@ export function AppShell({ children, selectedGame = 'tic-tac-toe', onSelectGame,
           return <button key={id} className={`pv-game-tab${selectedGame === id ? ' pv-game-tab-current' : ''}`} type="button" aria-label={gameRegistry[id].label} title={gameRegistry[id].label} aria-current={selectedGame === id ? 'page' : undefined} disabled={!gameRegistry[id].enabled} onClick={() => onSelectGame?.(id)}><Icon aria-hidden="true" /></button>
         })}
       </nav>
+      <div className="pv-header-actions">
+      {account && <AccountControls auth={account.auth} onSignIn={account.onSignIn} onSignOut={account.onSignOut} />}
       <div className="pv-settings" ref={settingsRef}>
         <button className="pv-icon-button" type="button" aria-label="Settings" aria-expanded={settingsOpen} aria-controls="pv-settings-menu" onClick={() => setSettingsOpen(!settingsOpen)}><Settings aria-hidden="true" /></button>
         {settingsOpen && <div className="pv-settings-menu pv-card" id="pv-settings-menu">
@@ -46,7 +63,10 @@ export function AppShell({ children, selectedGame = 'tic-tac-toe', onSelectGame,
           <label className="pv-setting"><input type="checkbox" checked={darkMode} onChange={event => setDarkMode(event.target.checked)} /><span>Dark mode</span></label>
         </div>}
       </div>
+      </div>
     </header>
+    {account && account.auth.status === 'signed-in' && selectedGame !== 'chess' && <PersonalStats stats={account.statistics} gameId={selectedGame} onRetry={account.onRetryStats} />}
+    {account && <ResultToast notices={account.statistics.notices} onDismiss={account.onDismissResultNotice} />}
     {children}
   </div>
 }

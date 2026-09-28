@@ -1,4 +1,4 @@
-import type { ConnectFourController, ConnectFourControllerDependencies, ConnectFourMatch, ConnectFourSnapshot, RequestToken } from '../contracts'
+import type { ConnectFourController, ConnectFourControllerDependencies, ConnectFourMatch, ConnectFourSnapshot, MatchCompletedEvent, RequestToken } from '../contracts'
 import { CONNECT_FOUR_SCHEMA_VERSION } from '../contracts/persistence'
 import { createAttemptResources, createRequestToken, sameRequestToken, type AttemptResources } from '../cpu/requests'
 import { sampleLegalMove } from '../cpu/random'
@@ -35,6 +35,16 @@ export function createConnectFourController(deps: ConnectFourControllerDependenc
   const saveMatch = (next: ConnectFourSnapshot) => next.match
     ? storage.writeMatch({ schemaVersion: CONNECT_FOUR_SCHEMA_VERSION, match: next.match, recovery: { consecutiveInvalid: next.request.consecutiveInvalid } })
     : { status: 'saved' as const }
+  const completion = (previous: ConnectFourMatch | null, next: ConnectFourMatch | null): MatchCompletedEvent | null => {
+    if (!previous || !next || previous.id !== next.id || previous.outcome.kind !== 'ongoing' || next.outcome.kind === 'ongoing') return null
+    const human = humanPlayer(next.setup)
+    return { gameId: 'connect-four', matchId: next.id, opponent: 'rng', result: next.outcome.kind === 'draw' ? 'draw'
+      : next.outcome.kind === 'resignation' ? 'loss' : next.outcome.winner === human ? 'win' : 'loss' }
+  }
+  const notifyCompletion = (event: MatchCompletedEvent | null) => {
+    if (!event) return
+    try { deps.onMatchCompleted?.(event) } catch (error) { console.error('Connect Four completion callback failed.', error) }
+  }
   const releaseAttempt = () => {
     const old = attempt
     attempt = null
@@ -54,9 +64,11 @@ export function createConnectFourController(deps: ConnectFourControllerDependenc
     const nextMatch = appendMove(match, column, 'cpu', diagnostic)
     const next: ConnectFourSnapshot = { ...snapshot, match: nextMatch, request: { status: 'idle', consecutiveInvalid: 0 },
       view: { ...snapshot.view, pendingColumn: null, resignationDialogOpen: nextMatch.outcome.kind === 'ongoing' && snapshot.view.resignationDialogOpen } }
+    const event = completion(match, nextMatch)
     const saved = saveMatch(next)
     publish(next)
     writeResult(saved)
+    notifyCompletion(event)
   }
   const reconcile = () => {
     if (!started || disposed || invalidSavedMatch || !cpuTurn()) return
@@ -136,11 +148,13 @@ export function createConnectFourController(deps: ConnectFourControllerDependenc
     const newMatchId = (command.type === 'start-game' && !snapshot.match) || (command.type === 'restart' && snapshot.match?.moves.length === 0) ? deps.newId() : undefined
     const outcome = transition(snapshot, command, newMatchId)
     if (outcome.result.status === 'ignored') return outcome.result
+    const event = completion(snapshot.match, outcome.snapshot.match)
     if (outcome.snapshot.match !== snapshot.match && attempt) releaseAttempt()
     const saved = outcome.persistence === 'match' ? saveMatch(outcome.snapshot)
       : outcome.persistence === 'remove-match' ? storage.removeMatch() : null
     publish(outcome.snapshot)
     if (saved) writeResult(saved)
+    notifyCompletion(event)
     reconcile()
     return outcome.result
   }

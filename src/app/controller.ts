@@ -1,4 +1,4 @@
-import type { ControllerDependencies, RequestToken, TicTacToeController, TicTacToeMatch, TicTacToeSnapshot } from '../contracts'
+import type { ControllerDependencies, MatchCompletedEvent, RequestToken, TicTacToeController, TicTacToeMatch, TicTacToeSnapshot } from '../contracts'
 import { SCHEMA_VERSION } from '../contracts/persistence'
 import { createAttemptResources, createRequestToken, sameRequestToken, type AttemptResources } from '../cpu/requests'
 import { sampleLegalMove } from '../cpu/random'
@@ -39,6 +39,15 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
   const saveMatch = (next: TicTacToeSnapshot) => next.match
     ? storage.writeMatch({ schemaVersion: SCHEMA_VERSION, match: next.match, recovery: { consecutiveInvalid: next.request.consecutiveInvalid } })
     : { status: 'saved' as const }
+  const completion = (previous: TicTacToeMatch | null, next: TicTacToeMatch | null): MatchCompletedEvent | null => {
+    if (!previous || !next || previous.id !== next.id || previous.outcome.kind !== 'ongoing' || next.outcome.kind === 'ongoing') return null
+    const result = next.outcome.kind === 'draw' ? 'draw' : next.outcome.winner === next.humanSymbol ? 'win' : 'loss'
+    return { gameId: 'tic-tac-toe', matchId: next.id, opponent: 'rng', result }
+  }
+  const notifyCompletion = (event: MatchCompletedEvent | null) => {
+    if (!event) return
+    try { deps.onMatchCompleted?.(event) } catch (error) { console.error('Match completion callback failed', error) }
+  }
   const releaseAttempt = () => {
     const old = attempt
     attempt = null
@@ -58,9 +67,11 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
     const nextMatch = appendMove(match, cell, 'cpu', diagnostic)
     const next = { ...snapshot, match: nextMatch, request: { status: 'idle' as const, consecutiveInvalid: 0 },
       view: nextMatch.outcome.kind === 'ongoing' ? snapshot.view : { ...snapshot.view, resignationDialogOpen: false } }
+    const event = completion(match, nextMatch)
     const saved = saveMatch(next)
     publish(next)
     writeResult(saved)
+    notifyCompletion(event)
   }
   const handleInvalid = (token: RequestToken) => {
     if (!current(token)) return
@@ -154,6 +165,7 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
     const matchId = (command.type === 'start-game' && !snapshot.match) || (command.type === 'restart' && snapshot.match?.moves.length === 0) ? deps.newId() : undefined
     const outcome = transition(snapshot, command, matchId)
     if (outcome.result.status === 'ignored') return outcome.result
+    const event = completion(snapshot.match, outcome.snapshot.match)
     if (outcome.snapshot.match !== snapshot.match && attempt) releaseAttempt()
     const saved = outcome.persistence === 'match' ? saveMatch(outcome.snapshot)
       : outcome.persistence === 'remove-match' ? storage.removeMatch()
@@ -161,6 +173,7 @@ export function createTicTacToeController(deps: ControllerDependencies): TicTacT
           : null
     publish(outcome.snapshot)
     if (saved) writeResult(saved)
+    notifyCompletion(event)
     if (outcome.persistence === 'settings') clearNotice('invalid-settings')
     reconcile()
     return outcome.result

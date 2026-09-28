@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { GameId, TicTacToeCommand, TicTacToeScreenProps, TicTacToeSnapshot } from '../contracts'
 import { TicTacToeSymbol } from './TicTacToeSymbol'
-import { AppShell, ResignationDialog } from './AppShell'
+import { AppShell, ResignationDialog, type AccountViewModel } from './AppShell'
 import { PlayAreaHeader } from './PlayAreaHeader'
 import { selectTicTacToePresentation } from '../games/tic-tac-toe/selectors'
 
@@ -10,6 +10,7 @@ export interface TicTacToeShellProps extends TicTacToeScreenProps {
   readonly board?: ReactNode
   readonly history?: ReactNode
   readonly onSelectGame?: (gameId: GameId) => void
+  readonly account?: AccountViewModel
 }
 
 function matchAction(snapshot: TicTacToeSnapshot): { label: string; command: TicTacToeCommand } | null {
@@ -35,14 +36,14 @@ function matchStatus(snapshot: TicTacToeSnapshot): { label: string; tone: string
 }
 
 /** Layout and shared controls only; no provider, timer, storage, or local match state. */
-export function TicTacToeScreen({ snapshot, dispatch, board, history, onSelectGame }: TicTacToeShellProps) {
+export function TicTacToeScreen({ snapshot, dispatch, board, history, onSelectGame, account }: TicTacToeShellProps) {
   const action = matchAction(snapshot)
   const status = snapshot.match ? matchStatus(snapshot) : null
   const presentation = selectTicTacToePresentation(snapshot)
   const invalidMatch = snapshot.notices.some((notice) => notice.kind === 'invalid-match')
 
   return (
-    <AppShell selectedGame="tic-tac-toe" onSelectGame={onSelectGame} settings={snapshot.settings} onConfirmMoves={enabled => dispatch({ type: 'set-confirm-moves', enabled })}>
+    <AppShell selectedGame="tic-tac-toe" onSelectGame={onSelectGame} settings={snapshot.settings} onConfirmMoves={enabled => dispatch({ type: 'set-confirm-moves', enabled })} account={account}>
       <main className="pv-main">
 
         {snapshot.notices.map((notice, index) => (

@@ -2,6 +2,14 @@ import type { CpuProvider, GameId, RulesAdapter } from './game'
 import type { TicTacToeMatch, TicTacToeMove, TicTacToePosition, TicTacToeSymbol, TicTacToeViewState } from './tic-tac-toe'
 import type { ConnectFourColor, ConnectFourHumanOrder, ConnectFourMatch, ConnectFourMove, ConnectFourPosition, ConnectFourSetup, ConnectFourViewState } from './connect-four'
 
+/** A terminal transition from the human player's perspective. */
+export interface MatchCompletedEvent {
+  readonly gameId: 'tic-tac-toe' | 'connect-four'
+  readonly matchId: string
+  readonly opponent: 'rng'
+  readonly result: 'win' | 'loss' | 'draw'
+}
+
 export interface RequestToken {
   readonly gameId: GameId
   readonly matchId: string
@@ -115,6 +123,7 @@ export interface ConnectFourControllerDependencies {
   readonly random: () => number
   readonly newId: () => string
   readonly settings: SharedSettingsStore
+  readonly onMatchCompleted?: (event: MatchCompletedEvent) => void
 }
 
 export type CommandResult =
@@ -150,4 +159,5 @@ export interface ControllerDependencies {
   readonly random: () => number
   readonly newId: () => string
   readonly settings?: SharedSettingsStore
+  readonly onMatchCompleted?: (event: MatchCompletedEvent) => void
 }

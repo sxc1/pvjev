@@ -26,6 +26,22 @@
 .pv-brand img { width: 2.75rem; height: 2.75rem; object-fit: contain; }
 .pv-game-nav { display: flex; flex-wrap: wrap; gap: .45rem; }
 .pv-settings { position: relative; justify-self: end; }
+.pv-header-actions { display: flex; align-items: center; justify-self: end; gap: .75rem; min-width: 0; }
+.pv-account { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; min-width: 0; color: var(--muted-foreground); font-size: .85rem; }
+.pv-account-name { max-width: 11rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--foreground); font-weight: 650; }
+.pv-account-error { flex-basis: 100%; color: var(--destructive); text-align: right; }
+.pv-personal-stats { width: min(100% - 2rem, 1100px); margin: 1rem auto 0; padding: 1rem 1.25rem; }
+.pv-personal-stats h2 { margin: 0 0 .5rem; font-size: 1rem; }
+.pv-personal-stats p { margin: .5rem 0; color: var(--muted-foreground); }
+.pv-personal-stats table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pv-personal-stats th, .pv-personal-stats td { padding: .45rem .65rem; border-bottom: 1px solid var(--border); text-align: right; }
+.pv-personal-stats th:first-child { text-align: left; }
+.pv-personal-stats thead { color: var(--muted-foreground); font-size: .82rem; }
+.pv-stats-note { color: var(--muted-foreground); font-size: .8em; font-weight: 400; }
+.pv-stats-error { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; color: var(--destructive); }
+.pv-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.pv-result-notices { position: fixed; right: 1rem; bottom: 1rem; z-index: 20; display: grid; gap: .5rem; width: min(360px, calc(100vw - 2rem)); }
+.pv-result-toast { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem 1rem; border: 1px solid var(--destructive); border-radius: var(--radius-lg); background: var(--card); color: var(--card-foreground); box-shadow: var(--shadow-xl); }
 .pv-icon-button { display: inline-grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--secondary); color: var(--secondary-foreground); }
 .pv-icon-button svg { width: 21px; height: 21px; }
 .pv-settings-menu { position: absolute; top: calc(100% + .75rem); right: 0; z-index: 10; width: min(320px, calc(100vw - 2rem)); padding: 1.25rem; }
@@ -98,6 +114,9 @@
   .pv-game-nav { grid-column: 1 / -1; grid-row: 2; }
   .pv-game-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .pv-game-tab { width: 100%; }
+  .pv-header-actions { max-width: 100%; }
+  .pv-account-name { max-width: 7rem; }
+  .pv-account .pv-button { min-height: 44px; padding: .5rem .65rem; }
   .pv-notice { align-items: stretch; flex-direction: column; }
   .pv-play-header { gap: .25rem; }
   .pv-play-header .pv-board-status { font-size: 1rem; }

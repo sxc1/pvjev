@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ConnectFourControllerDependencies, CpuChoice, Settings, SharedSettingsStore } from '../../src/contracts'
+import type { ConnectFourControllerDependencies, CpuChoice, MatchCompletedEvent, Settings, SharedSettingsStore } from '../../src/contracts'
 import { CONNECT_FOUR_MATCH_STORAGE_KEY } from '../../src/contracts/persistence'
 import { createConnectFourController } from '../../src/app/connect-four-controller'
 import { connectFourRules } from '../../src/games/connect-four/rules'
@@ -8,7 +8,7 @@ import { emptySnapshot, transition } from '../../src/app/connect-four-transition
 type Deferred = { resolve(value: unknown): void; reject(reason: unknown): void; signal: AbortSignal }
 const flush = async () => { await Promise.resolve(); await Promise.resolve() }
 
-function harness(seed = new Map<string, string>(), providerMode?: 'throw') {
+function harness(seed = new Map<string, string>(), providerMode?: 'throw', options?: { onCompleted?: (event: MatchCompletedEvent) => void; failSave?: boolean }) {
   const requests: Deferred[] = [], calls: string[] = []
   let ids = 0, settings: Settings = { confirmMoves: false }
   const listeners = new Set<() => void>()
@@ -27,13 +27,14 @@ function harness(seed = new Map<string, string>(), providerMode?: 'throw') {
     } },
     storage: () => ({
       getItem: key => seed.get(key) ?? null,
-      setItem: (key, value) => { calls.push('save'); seed.set(key, value) },
+      setItem: (key, value) => { calls.push('save'); if (options?.failSave) throw new Error('storage unavailable'); seed.set(key, value) },
       removeItem: key => { calls.push('remove'); seed.delete(key) },
     }),
     scheduler: { now: () => Date.now(), setTimeout: (callback, ms) => setTimeout(callback, ms), clearTimeout: handle => clearTimeout(handle as number) },
     random: () => 0,
     newId: () => `cf-${++ids}`,
     settings: settingsStore,
+    onMatchCompleted: options?.onCompleted,
   }
   const controller = createConnectFourController(deps)
   controller.start()
@@ -270,5 +271,87 @@ describe('C5 Connect Four controller', () => {
     expect(restored.controller.dispatch({ type: 'start-fresh' }).status).toBe('applied')
     expect(corrupt.has(CONNECT_FOUR_MATCH_STORAGE_KEY)).toBe(false)
     restored.controller.dispose()
+  })
+
+  it.each(['red', 'yellow'] as const)('emits a human-first %s win after saving, once', async color => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(new Map(), undefined, { onCompleted: event => { expect(h.calls.at(-1)).toBe('save'); events.push(event) } })
+    h.controller.dispatch({ type: 'select-color', color })
+    h.controller.dispatch({ type: 'start-game' })
+    const id = h.controller.getSnapshot().match!.id
+    for (const [human, cpu] of [[0, 6], [1, 6], [2, 5]] as const) {
+      h.controller.dispatch({ type: 'select-column', column: human })
+      h.requests.at(-1)!.resolve({ move: cpu })
+      await flush()
+    }
+    h.controller.dispatch({ type: 'select-column', column: 3 })
+    expect(events).toEqual([{ gameId: 'connect-four', matchId: id, opponent: 'rng', result: 'win' }])
+    h.controller.dispatch({ type: 'select-column', column: 4 })
+    h.controller.dispatch({ type: 'select-history', ply: 1 })
+    h.controller.dispatch({ type: 'return-to-current' })
+    h.controller.dispatch({ type: 'rematch' })
+    expect(events).toHaveLength(1)
+    h.controller.dispose()
+  })
+
+  it.each(['red', 'yellow'] as const)('emits a CPU terminal loss with human %s and second order', async color => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(new Map(), undefined, { onCompleted: event => { expect(h.calls.at(-1)).toBe('save'); events.push(event) } })
+    h.controller.dispatch({ type: 'select-color', color })
+    h.controller.dispatch({ type: 'select-order', order: 'second' })
+    h.controller.dispatch({ type: 'start-game' })
+    const id = h.controller.getSnapshot().match!.id
+    for (const [cpu, human] of [[0, 6], [1, 6], [2, 5]] as const) {
+      h.requests.at(-1)!.resolve({ move: cpu })
+      await flush()
+      h.controller.dispatch({ type: 'select-column', column: human })
+    }
+    h.requests.at(-1)!.resolve({ move: 3 })
+    await flush()
+    expect(events).toEqual([{ gameId: 'connect-four', matchId: id, opponent: 'rng', result: 'loss' }])
+    h.controller.dispose()
+  })
+
+  it('recognizes a human-second win independent of the first-player token', async () => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(new Map(), undefined, { onCompleted: event => events.push(event) })
+    h.controller.dispatch({ type: 'select-order', order: 'second' })
+    h.controller.dispatch({ type: 'start-game' })
+    const id = h.controller.getSnapshot().match!.id
+    for (const [cpu, human] of [[6, 0], [6, 1], [5, 2], [5, 3]] as const) {
+      h.requests.at(-1)!.resolve({ move: cpu })
+      await flush()
+      h.controller.dispatch({ type: 'select-column', column: human })
+    }
+    expect(events).toEqual([{ gameId: 'connect-four', matchId: id, opponent: 'rng', result: 'win' }])
+    h.controller.dispose()
+  })
+
+  it('reports confirmed resignation despite a failed save and isolates callback failure', () => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(new Map(), undefined, { failSave: true, onCompleted: event => { events.push(event); throw new Error('listener failed') } })
+    h.controller.dispatch({ type: 'start-game' })
+    h.controller.dispatch({ type: 'select-column', column: 0 })
+    h.controller.dispatch({ type: 'open-resignation' })
+    const id = h.controller.getSnapshot().match!.id
+    expect(h.controller.dispatch({ type: 'confirm-resignation' }).status).toBe('applied')
+    expect(events).toEqual([{ gameId: 'connect-four', matchId: id, opponent: 'rng', result: 'loss' }])
+    expect(h.controller.getSnapshot().match?.outcome.kind).toBe('resignation')
+    h.controller.dispose()
+  })
+
+  it('emits a draw after the terminal CPU move', async () => {
+    const events: MatchCompletedEvent[] = []
+    const h = harness(new Map(), undefined, { onCompleted: event => events.push(event) })
+    const columns = [6, 3, 3, 6, 5, 1, 0, 1, 6, 3, 5, 5, 2, 6, 1, 4, 1, 6, 4, 0, 3, 1, 3, 3, 0, 1, 0, 2, 6, 4, 5, 5, 4, 0, 0, 5, 2, 2, 4, 2, 4, 2]
+    h.controller.dispatch({ type: 'start-game' })
+    const id = h.controller.getSnapshot().match!.id
+    for (let ply = 0; ply < columns.length; ply++) {
+      if (ply % 2 === 0) expect(h.controller.dispatch({ type: 'select-column', column: columns[ply] }).status).toBe('applied')
+      else { h.requests.at(-1)!.resolve({ move: columns[ply] }); await flush() }
+    }
+    expect(h.controller.getSnapshot().match?.outcome.kind).toBe('draw')
+    expect(events).toEqual([{ gameId: 'connect-four', matchId: id, opponent: 'rng', result: 'draw' }])
+    h.controller.dispose()
   })
 })
