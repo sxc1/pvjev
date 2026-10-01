@@ -34,7 +34,7 @@ export const twoMovePosition: ConnectFourPosition = {
 
 /** Yellow opens; red is the CPU, proving color and player identity are independent. */
 export const yellowFirstMatch: ConnectFourMatch = {
-  gameId: 'connect-four', id: 'fixture-yellow-first', setup: allSetups[1],
+  assignment: { opponent: 'rng' }, gameId: 'connect-four', id: 'fixture-yellow-first', setup: allSetups[1],
   moves: [
     { ply: 1, column: 0, landingCell: 35, player: 'one', color: 'yellow', actor: 'human', provenance: 'human' },
     { ply: 2, column: 1, landingCell: 36, player: 'two', color: 'red', actor: 'cpu', provenance: 'rng' },
@@ -44,7 +44,7 @@ export const yellowFirstMatch: ConnectFourMatch = {
 
 /** CPU opens as player one; red human plays second. */
 export const redSecondMatch: ConnectFourMatch = {
-  gameId: 'connect-four', id: 'fixture-red-second', setup: allSetups[2],
+  assignment: { opponent: 'rng' }, gameId: 'connect-four', id: 'fixture-red-second', setup: allSetups[2],
   moves: [
     { ply: 1, column: 0, landingCell: 35, player: 'one', color: 'yellow', actor: 'cpu', provenance: 'rng' },
     { ply: 2, column: 1, landingCell: 36, player: 'two', color: 'red', actor: 'human', provenance: 'human' },
@@ -64,5 +64,5 @@ export const reviewingFirstMoveView: ConnectFourViewState = {
 }
 
 export const yellowFirstSave: ConnectFourMatchEnvelope = {
-  schemaVersion: 1, match: yellowFirstMatch, recovery: { consecutiveInvalid: 0 },
+  schemaVersion: 2, match: yellowFirstMatch, recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 0, disposition: 'ready' },
 }

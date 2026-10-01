@@ -34,7 +34,7 @@ describe('T4 storage adapter', () => {
     const { values, adapter } = fakeStorage()
     const cases = [
       'not json',
-      JSON.stringify({ ...validSaves.humanTurn, schemaVersion: 2 }),
+      JSON.stringify({ ...validSaves.humanTurn, schemaVersion: 1 }),
       JSON.stringify({ ...validSaves.humanTurn, match: { ...validSaves.humanTurn.match, gameId: 'chess' } }),
       JSON.stringify({ ...validSaves.humanTurn, recovery: { consecutiveInvalid: 3 } }),
       JSON.stringify({ ...validSaves.humanTurn, match: { ...validSaves.humanTurn.match, moves: [{ ...validSaves.humanTurn.match.moves[0], analysis: {} }] } }),

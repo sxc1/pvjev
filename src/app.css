@@ -125,3 +125,13 @@
   .pv-history-content { display: none; }
   .pv-history-expanded { display: block; }
 }
+.pv-key-controls { margin: .75rem auto; width: min(100% - 2rem, 1080px); }
+.pv-key-controls h2 { margin-top: 0; }
+.pv-key-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.pv-key-row input { flex: 1 1 16rem; min-width: 0; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--background); color: var(--foreground); }
+.pv-key-status { margin-bottom: 0; }
+.pv-opponent { font-weight: 700; text-align: center; }
+.pv-jev-analysis ol { padding-left: 1.5rem; }
+.pv-jev-analysis li { display: flex; justify-content: space-between; gap: 1rem; margin-block: .35rem; }
+.pv-jev-tie { padding: .75rem; border: 2px solid var(--border); border-radius: .5rem; }
+.pv-jev-tie:focus-visible { outline: 3px solid var(--foreground); outline-offset: 2px; }

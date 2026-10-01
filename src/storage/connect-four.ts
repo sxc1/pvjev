@@ -2,7 +2,8 @@ import type { KeyValueStorage } from '../contracts/application'
 import type { ConnectFourBoardOutcome, ConnectFourMatch, ConnectFourPosition, ConnectFourWinningLine } from '../contracts/connect-four'
 import type { ConnectFourMatchEnvelope } from '../contracts/persistence'
 import { CONNECT_FOUR_MATCH_STORAGE_KEY, CONNECT_FOUR_SCHEMA_VERSION } from '../contracts/persistence'
-import { applyMove, initialPosition, isLegalMove } from '../games/connect-four/rules'
+import { applyMove, initialPosition, isLegalMove, legalMoves } from '../games/connect-four/rules'
+import { validMoveMetadata, validPartOneAssignment, validRecovery } from './jev-validation'
 import { createStorageAdapter, type DecodeResult } from './index'
 
 const invalid = (reason: string): DecodeResult<ConnectFourMatchEnvelope> => ({ status: 'invalid', reason })
@@ -36,12 +37,12 @@ function position(value: unknown): boolean {
 
 function record(value: unknown): boolean {
   if (!object(value) || !Number.isInteger(value.ply) || Number(value.ply) < 1 || Number(value.ply) > 42 ||
-    !column(value.column) || !cell(value.landingCell) || !player(value.player) || !color(value.color) ||
-    'analysis' in value) return false
-  if (value.actor === 'human') return value.provenance === 'human' && !('diagnostic' in value)
+    !column(value.column) || !cell(value.landingCell) || !player(value.player) || !color(value.color)) return false
+  if (value.actor === 'human') return value.provenance === 'human' && !('diagnostic' in value) && !('analysis' in value)
   if (value.actor !== 'cpu') return false
-  if (value.provenance === 'rng') return !('diagnostic' in value)
-  return value.provenance === 'rng-fallback' && typeof value.diagnostic === 'string' && value.diagnostic.length > 0
+  if (value.provenance === 'rng') return !('diagnostic' in value) && !('analysis' in value)
+  if (value.provenance === 'jev') return !('diagnostic' in value) && object(value.analysis)
+  return value.provenance === 'rng-fallback' && typeof value.diagnostic === 'string' && value.diagnostic.length > 0 && !('analysis' in value)
 }
 
 function normalizeLines(value: readonly ConnectFourWinningLine[]): string[] {
@@ -75,9 +76,12 @@ export function decodeConnectFourMatchEnvelope(value: unknown): DecodeResult<Con
     match.id.trim().length === 0 || !object(match.setup) || !color(match.setup.humanColor) ||
     (match.setup.humanOrder !== 'first' && match.setup.humanOrder !== 'second') ||
     !Array.isArray(match.moves) || match.moves.length > 42 || !match.moves.every(record) ||
-    !position(match.position) || !matchOutcome(match.outcome)) return invalid('Saved Connect Four match has an invalid shape.')
+    !position(match.position) || !matchOutcome(match.outcome) || !validPartOneAssignment(match.assignment)) return invalid('Saved Connect Four match has an invalid shape.')
   if (!object(value.recovery) || !Number.isInteger(value.recovery.consecutiveInvalid) ||
-    Number(value.recovery.consecutiveInvalid) < 0 || Number(value.recovery.consecutiveInvalid) > 2) {
+    Number(value.recovery.consecutiveInvalid) < 0 || Number(value.recovery.consecutiveInvalid) > 2 ||
+    !Number.isInteger(value.recovery.consecutiveServiceFailures) ||
+    Number(value.recovery.consecutiveServiceFailures) < 0 || Number(value.recovery.consecutiveServiceFailures) > 2 ||
+    (value.recovery.disposition !== 'ready' && value.recovery.disposition !== 'manual-retry-required')) {
     return invalid('Saved Connect Four match has invalid recovery metadata.')
   }
 
@@ -94,6 +98,7 @@ export function decodeConnectFourMatchEnvelope(value: unknown): DecodeResult<Con
       return invalid('Saved Connect Four move identity does not match setup and ply.')
     }
     if (!isLegalMove(replay, move.column)) return invalid('Saved Connect Four moves contain an illegal continuation.')
+    if (!validMoveMetadata(move, typed.match.assignment, legalMoves(replay).map(column => `column-${column}`), `column-${move.column}`)) return invalid('Saved Connect Four move has invalid Jev metadata or provenance.')
     const next = applyMove(replay, move.column)
     const landing = next.board.findIndex((entry, cellIndex) => entry !== replay.board[cellIndex])
     if (move.landingCell !== landing) return invalid('Saved Connect Four landing cell does not match gravity.')
@@ -112,7 +117,7 @@ export function decodeConnectFourMatchEnvelope(value: unknown): DecodeResult<Con
     return invalid('Saved Connect Four match outcome does not match moves.')
   }
   const cpuTurn = savedMatch.outcome.kind === 'ongoing' && replay.nextPlayer !== humanPlayer
-  if (!cpuTurn && typed.recovery.consecutiveInvalid !== 0) {
+  if (!validRecovery(typed.recovery, cpuTurn, savedMatch.assignment)) {
     return invalid('Saved Connect Four recovery count requires a CPU turn.')
   }
   return { status: 'valid', value: typed }

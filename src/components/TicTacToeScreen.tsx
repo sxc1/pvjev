@@ -28,6 +28,7 @@ function matchStatus(snapshot: TicTacToeSnapshot): { label: string; tone: string
   if (match.outcome.kind === 'win') return match.outcome.winner === match.humanSymbol
     ? { label: 'Victory', tone: 'victory' }
     : { label: 'Defeat', tone: 'defeat' }
+  if (snapshot.request.status === 'waiting-for-key') return { label: 'Waiting for TypeSafe key', tone: 'waiting' }
   if (snapshot.request.status === 'failed') return { label: 'CPU move failed', tone: 'waiting' }
   if (snapshot.request.status === 'pending') return { label: 'CPU is thinking…', tone: 'waiting' }
   return match.position.nextSymbol === match.humanSymbol
@@ -57,7 +58,7 @@ export function TicTacToeScreen({ snapshot, dispatch, board, history, onSelectGa
           <section className="pv-setup pv-card" aria-labelledby="setup-title">
             <p className="pv-eyebrow">New match</p>
             <h2 id="setup-title">Choose your side</h2>
-            <p>X makes the first move. The CPU chooses random legal moves.</p>
+            <p>X makes the first move. A saved TypeSafe key uses Jev; otherwise the CPU chooses random legal moves.</p>
             <div className="pv-side-options" role="group" aria-label="Your side">
               {(['X', 'O'] as const).map((symbol) => (
                 <button className={`pv-side-option${snapshot.setupSymbol === symbol ? ' pv-side-option-selected' : ''}`} type="button" aria-label={`Play as ${symbol}`} aria-pressed={snapshot.setupSymbol === symbol} onClick={() => dispatch({ type: 'select-side', symbol })} key={symbol}>
@@ -79,6 +80,8 @@ export function TicTacToeScreen({ snapshot, dispatch, board, history, onSelectGa
                 onForward={() => dispatch({ type: 'navigate-history', direction: 'forward' })}
                 onReview={() => dispatch({ type: 'select-history', ply: presentation!.entries.length })}
                 onReturn={() => dispatch({ type: 'return-to-current' })} />
+              <p className="pv-opponent">Opponent: {snapshot.match.assignment.opponent === 'jev' ? 'Jev' : 'RNG'}</p>
+              {snapshot.request.status === 'waiting-for-key' && <p role="status">Re-enter your TypeSafe key to continue this Jev match.</p>}
               {board ?? <div className="pv-widget-placeholder">Board</div>}
               {snapshot.request.status === 'failed' && <div className="pv-error" role="alert"><p>{snapshot.request.error}</p></div>}
               {snapshot.request.status !== 'idle' && snapshot.request.retryAvailable && (

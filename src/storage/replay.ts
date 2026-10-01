@@ -1,6 +1,7 @@
 import type { TicTacToeBoardOutcome, TicTacToePosition, TicTacToeWinningLine } from '../contracts/tic-tac-toe'
 import type { MatchEnvelope } from '../contracts/persistence'
-import { applyMove, initialPosition, isLegalMove } from '../games/tic-tac-toe/rules'
+import { applyMove, initialPosition, isLegalMove, legalMoves } from '../games/tic-tac-toe/rules'
+import { validMoveMetadata, validRecovery } from './jev-validation'
 import { decodeMatchEnvelope, type DecodeResult } from './index'
 
 const invalid = (reason: string): DecodeResult<MatchEnvelope> => ({ status: 'invalid', reason })
@@ -40,6 +41,7 @@ export function decodeReplayMatchEnvelope(value: unknown): DecodeResult<MatchEnv
     const expectedActor = move.symbol === match.humanSymbol ? 'human' : 'cpu'
     if (move.actor !== expectedActor) return invalid('Saved move actor does not match the selected side.')
     if (!isLegalMove(position, move.cell)) return invalid('Saved moves contain an illegal continuation.')
+    if (!validMoveMetadata(move, match.assignment, legalMoves(position).map(cell => `cell-${cell}`), `cell-${move.cell}`)) return invalid('Saved move has invalid Jev metadata or provenance.')
     position = applyMove(position, move.cell)
   }
 
@@ -55,7 +57,7 @@ export function decodeReplayMatchEnvelope(value: unknown): DecodeResult<MatchEnv
   }
 
   const cpuTurn = match.outcome.kind === 'ongoing' && position.nextSymbol !== match.humanSymbol
-  if (!cpuTurn && recovery.consecutiveInvalid !== 0) {
+  if (!validRecovery(recovery, cpuTurn, match.assignment)) {
     return invalid('Saved recovery count is only valid during a CPU turn.')
   }
   return decoded

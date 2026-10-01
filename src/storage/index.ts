@@ -1,6 +1,7 @@
 import type { KeyValueStorage } from '../contracts/application'
 import type { MatchEnvelope, SettingsEnvelope, StorageReadResult, StorageWriteResult } from '../contracts/persistence'
-import { MATCH_STORAGE_KEY, SCHEMA_VERSION, SETTINGS_STORAGE_KEY } from '../contracts/persistence'
+import { MATCH_STORAGE_KEY, SCHEMA_VERSION, SETTINGS_SCHEMA_VERSION, SETTINGS_STORAGE_KEY } from '../contracts/persistence'
+import { validPartOneAssignment } from './jev-validation'
 
 export type DecodeResult<Value> =
   | { readonly status: 'valid'; readonly value: Value }
@@ -30,12 +31,13 @@ function position(value: unknown): boolean {
 
 function record(value: unknown): boolean {
   if (!object(value) || !Number.isInteger(value.ply) || Number(value.ply) < 1 ||
-    !symbol(value.symbol) || !move(value.cell) || 'analysis' in value) return false
-  if (value.actor === 'human') return value.provenance === 'human' && !('diagnostic' in value)
+    !symbol(value.symbol) || !move(value.cell)) return false
+  if (value.actor === 'human') return value.provenance === 'human' && !('diagnostic' in value) && !('analysis' in value)
   if (value.actor !== 'cpu') return false
-  if (value.provenance === 'rng') return !('diagnostic' in value)
+  if (value.provenance === 'rng') return !('diagnostic' in value) && !('analysis' in value)
+  if (value.provenance === 'jev') return !('diagnostic' in value) && object(value.analysis)
   return value.provenance === 'rng-fallback' && typeof value.diagnostic === 'string' &&
-    value.diagnostic.length > 0
+    value.diagnostic.length > 0 && !('analysis' in value)
 }
 
 function matchOutcome(value: unknown): boolean {
@@ -52,9 +54,12 @@ export function decodeMatchEnvelope(value: unknown): DecodeResult<MatchEnvelope>
   if (!object(match) || match.gameId !== 'tic-tac-toe' || typeof match.id !== 'string' ||
     match.id.length === 0 || !symbol(match.humanSymbol) || !Array.isArray(match.moves) ||
     match.moves.length > 9 || !match.moves.every(record) || !position(match.position) ||
-    !matchOutcome(match.outcome)) return invalid('Saved match has an invalid shape.')
+    !matchOutcome(match.outcome) || !validPartOneAssignment(match.assignment)) return invalid('Saved match has an invalid shape.')
   if (!object(value.recovery) || !Number.isInteger(value.recovery.consecutiveInvalid) ||
-    Number(value.recovery.consecutiveInvalid) < 0 || Number(value.recovery.consecutiveInvalid) > 2) {
+    Number(value.recovery.consecutiveInvalid) < 0 || Number(value.recovery.consecutiveInvalid) > 2 ||
+    !Number.isInteger(value.recovery.consecutiveServiceFailures) ||
+    Number(value.recovery.consecutiveServiceFailures) < 0 || Number(value.recovery.consecutiveServiceFailures) > 2 ||
+    (value.recovery.disposition !== 'ready' && value.recovery.disposition !== 'manual-retry-required')) {
     return invalid('Saved match has invalid recovery metadata.')
   }
   return { status: 'valid', value: value as unknown as MatchEnvelope }
@@ -62,7 +67,7 @@ export function decodeMatchEnvelope(value: unknown): DecodeResult<MatchEnvelope>
 
 export function decodeSettingsEnvelope(value: unknown): DecodeResult<SettingsEnvelope> {
   if (!object(value)) return invalid('Saved settings are not an object.')
-  if (value.schemaVersion !== SCHEMA_VERSION) return invalid('Saved settings have an unsupported schema version.')
+  if (value.schemaVersion !== SETTINGS_SCHEMA_VERSION) return invalid('Saved settings have an unsupported schema version.')
   if (!object(value.settings) || typeof value.settings.confirmMoves !== 'boolean') {
     return invalid('Saved settings have an invalid shape.')
   }

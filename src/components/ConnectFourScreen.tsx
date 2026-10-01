@@ -23,6 +23,7 @@ function status(snapshot: ConnectFourSnapshot): { label: string; tone: string } 
   if (match.outcome.kind === 'draw') return { label: 'Draw', tone: 'draw' }
   if (match.outcome.kind === 'win') return match.outcome.winner === (match.setup.humanOrder === 'first' ? 'one' : 'two')
     ? { label: 'Victory', tone: 'victory' } : { label: 'Defeat', tone: 'defeat' }
+  if (snapshot.request.status === 'waiting-for-key') return { label: 'Waiting for TypeSafe key', tone: 'waiting' }
   if (snapshot.request.status === 'failed') return { label: 'CPU move failed', tone: 'waiting' }
   if (snapshot.request.status === 'pending') return { label: 'CPU is thinking…', tone: 'waiting' }
   return match.position.nextPlayer === (match.setup.humanOrder === 'first' ? 'one' : 'two')
@@ -53,7 +54,7 @@ export function ConnectFourScreen({ snapshot, dispatch, onConfirmMoves, onSelect
       {!snapshot.match ? <section className="pv-setup pv-card" aria-labelledby="cf-setup-title">
         <p className="pv-eyebrow">New match</p>
         <h2 id="cf-setup-title">Set up Connect Four</h2>
-        <p>Choose your color and move order. The CPU chooses random legal columns.</p>
+        <p>Choose your color and move order. A saved TypeSafe key uses Jev; otherwise the CPU chooses random legal columns.</p>
         <div className="cf-setup-row" role="group" aria-label="Your color">
           <span className="cf-setup-row-label">Your color</span>
           <div className="cf-setup-options">{(['red', 'yellow'] as const).map(color => <button key={color} type="button"
@@ -77,6 +78,8 @@ export function ConnectFourScreen({ snapshot, dispatch, onConfirmMoves, onSelect
             onAction={() => dispatch(action!.command)} onBack={() => dispatch({ type: 'navigate-history', direction: 'back' })}
             onForward={() => dispatch({ type: 'navigate-history', direction: 'forward' })}
             onReview={() => dispatch({ type: 'toggle-review' })} onReturn={() => dispatch({ type: 'return-to-current' })} />
+          <p className="pv-opponent">Opponent: {snapshot.match.assignment.opponent === 'jev' ? 'Jev' : 'RNG'}</p>
+          {snapshot.request.status === 'waiting-for-key' && <p role="status">Re-enter your TypeSafe key to continue this Jev match.</p>}
           {board ?? (presentation && <ConnectFourBoard snapshot={snapshot} position={presentation.position} dispatch={dispatch}
             selectedCell={presentation.selectedCell} latestCell={presentation.latestCell} winningCells={presentation.winningCells} />)}
           {snapshot.request.status === 'failed' && <div className="pv-error" role="alert"><p>{snapshot.request.error}</p></div>}

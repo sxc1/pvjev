@@ -107,12 +107,13 @@ test('B1: resignation cancel preserves match, confirmation ends it', async ({ pa
   await expect(page.locator('.pv-board-status')).toHaveText('Defeat')
 })
 
-test('B1: saved RNG fallback shows its diagnostic without a score table', async ({ page }) => {
+test('B1: saved Jev fallback shows its diagnostic without a score table', async ({ page }) => {
   const fallbackSave = {
     ...validSaves.humanTurn,
     match: {
       ...validSaves.humanTurn.match,
       id: 'fixture-fallback',
+      assignment: { opponent: 'jev', credentialRoute: 'visitor' },
       moves: validSaves.humanTurn.match.moves.map(move => move.actor === 'cpu'
         ? { ...move, provenance: 'rng-fallback' as const, diagnostic: 'CPU returned three invalid moves; a random legal move was used.' }
         : move),
@@ -182,8 +183,8 @@ test('B3: malformed match offers explicit fresh start', async ({ page }) => {
   await expect(page.getByRole('group', { name: 'Current Tic Tac Toe board' })).toBeVisible()
 })
 
-test('B3: restored CPU turn resumes once and its result survives reload', async ({ page }) => {
-  await seedMatch(page, validSaves.cpuTurnAfterTwoInvalid)
+test('B3: restored RNG CPU turn resumes once and its result survives reload', async ({ page }) => {
+  await seedMatch(page, { ...validSaves.cpuTurnAfterTwoInvalid, match: { ...validSaves.cpuTurnAfterTwoInvalid.match, assignment: { opponent: 'rng' } }, recovery: { consecutiveInvalid: 0, consecutiveServiceFailures: 0, disposition: 'ready' } })
   await page.goto('')
   await expect(page.locator('.pv-history-entry')).toHaveCount(2)
   const afterCpu = await storedMatch(page)

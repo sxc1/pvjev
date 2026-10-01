@@ -1,5 +1,5 @@
 import type { KeyValueStorage, Settings, SharedSettingsStore, StorageNotice } from '../contracts'
-import { SCHEMA_VERSION } from '../contracts/persistence'
+import { SETTINGS_SCHEMA_VERSION } from '../contracts/persistence'
 import { createStorageAdapter } from '../storage'
 
 export interface SettingsStore extends SharedSettingsStore {
@@ -31,7 +31,7 @@ export function createSharedSettingsStore(acquire: () => KeyValueStorage): Setti
       if (typeof enabled !== 'boolean' || settings.confirmMoves === enabled) return
       settings = { confirmMoves: enabled }
       notices = notices.filter(notice => notice.kind !== 'invalid-settings')
-      const result = storage.writeSettings({ schemaVersion: SCHEMA_VERSION, settings })
+      const result = storage.writeSettings({ schemaVersion: SETTINGS_SCHEMA_VERSION, settings })
       if (result.status === 'unavailable') notices = [...notices.filter(notice => notice.kind !== 'unavailable'), { kind: 'unavailable', message: `Settings could not be saved. ${result.error}` }]
       notify()
     },

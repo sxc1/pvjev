@@ -6,9 +6,9 @@ import { yellowFirstSave } from '../fixtures/connect-four'
 import { validSaves, validSettings } from '../fixtures/v05'
 
 const literalWin = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   match: {
-    gameId: 'connect-four', id: 'literal-win', setup: { humanColor: 'red', humanOrder: 'first' },
+    assignment: { opponent: 'rng' }, gameId: 'connect-four', id: 'literal-win', setup: { humanColor: 'red', humanOrder: 'first' },
     moves: [
       { ply: 1, column: 0, landingCell: 35, player: 'one', color: 'red', actor: 'human', provenance: 'human' },
       { ply: 2, column: 6, landingCell: 41, player: 'two', color: 'yellow', actor: 'cpu', provenance: 'rng' },
@@ -29,7 +29,7 @@ const literalWin = {
     },
     outcome: { kind: 'win', winner: 'one', winningLines: [[35,36,37,38]] },
   },
-  recovery: { consecutiveInvalid: 0 },
+  recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 0, disposition: 'ready' },
 }
 
 function clone<T>(value: T): T { return structuredClone(value) }
@@ -63,9 +63,10 @@ describe('C4 Connect Four storage and replay', () => {
   it('accepts literal ongoing saves and validates recovery only on a CPU turn', () => {
     expect(decodeConnectFourMatchEnvelope(yellowFirstSave).status).toBe('valid')
     const cpuTurn = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       match: {
         ...yellowFirstSave.match,
+        assignment: { opponent: 'jev', credentialRoute: 'visitor' },
         moves: yellowFirstSave.match.moves.slice(0, 1),
         position: {
           board: [
@@ -75,7 +76,7 @@ describe('C4 Connect Four storage and replay', () => {
           columns: [0], nextPlayer: 'two', outcome: { kind: 'ongoing' }, winningLines: [],
         },
       },
-      recovery: { consecutiveInvalid: 2 },
+      recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 2, disposition: 'ready' },
     }
     expect(decodeConnectFourMatchEnvelope(cpuTurn).status).toBe('valid')
     expect(decodeConnectFourMatchEnvelope({ ...yellowFirstSave, recovery: { consecutiveInvalid: 1 } }).status).toBe('invalid')
@@ -94,7 +95,7 @@ describe('C4 Connect Four storage and replay', () => {
     ['forged columns', (save: any) => { save.match.position.columns = [0,0] }],
     ['forged outcome', (save: any) => { save.match.outcome = { kind: 'draw' } }],
     ['bad recovery', (save: any) => { save.recovery.consecutiveInvalid = 3 }],
-    ['unsupported version', (save: any) => { save.schemaVersion = 2 }],
+    ['unsupported version', (save: any) => { save.schemaVersion = 1 }],
   ])('rejects %s', (_name, corrupt) => {
     const save: any = clone(yellowFirstSave)
     corrupt(save)

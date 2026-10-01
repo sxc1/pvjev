@@ -1,4 +1,5 @@
 import type { GameId } from './game'
+import type { JevAnalysis, OpponentAssignment } from './jev'
 
 /** Top-origin row-major index, A6=0 through G1=41. Runtime input needs validation. */
 export type ConnectFourCell = number
@@ -33,7 +34,7 @@ export interface ConnectFourPosition {
   readonly winningLines: readonly ConnectFourWinningLine[]
 }
 
-export type ConnectFourMoveRecord<Analysis = never> = {
+export type ConnectFourMoveRecord<Analysis = JevAnalysis> = {
   readonly ply: number
   readonly column: ConnectFourMove
   readonly landingCell: ConnectFourCell
@@ -46,7 +47,8 @@ export type ConnectFourMoveRecord<Analysis = never> = {
   | { readonly actor: 'cpu'; readonly provenance: 'jev'; readonly analysis: Analysis; readonly diagnostic?: never }
 )
 
-export interface ConnectFourMatch<Analysis = never> {
+export interface ConnectFourMatch<Analysis = JevAnalysis> {
+  readonly assignment: OpponentAssignment
   readonly gameId: Extract<GameId, 'connect-four'>
   readonly id: string
   readonly setup: ConnectFourSetup

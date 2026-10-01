@@ -16,6 +16,16 @@ const make = (responses: StatisticsResult<GameStatistics>[]) => {
   return { store, recordCompletion, reconcileCompletion }
 }
 
+describe('Jev completion identity', () => {
+  it('sends the assigned Jev opponent through the existing statistics path', async () => {
+    const jevEvent: MatchCompletedEvent = { ...event, matchId: 'jev-match', opponent: 'jev' }
+    const { store, recordCompletion } = make([{ ok: true, data: { ...row, winJev: 1, lastMatchId: 'jev-match' } }])
+    store.recordCompletion('account-1', jevEvent)
+    await flush()
+    expect(recordCompletion).toHaveBeenCalledWith(jevEvent, expect.any(AbortSignal))
+    expect(store.getSnapshot().rows['tic-tac-toe']?.winJev).toBe(1)
+  })
+})
 describe('statistics writes', () => {
   it('deduplicates delivery and applies one successful RPC', async () => {
     const { store, recordCompletion } = make([{ ok: true, data: row }])

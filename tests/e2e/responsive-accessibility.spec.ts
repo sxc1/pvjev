@@ -3,9 +3,9 @@ import { MATCH_STORAGE_KEY } from '../../src/contracts/persistence'
 import { humanTurnMatch, wonMatch } from '../fixtures/v05'
 
 const doubleLineWin = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   match: {
-    gameId: 'tic-tac-toe', id: 'fixture-double-line-win', humanSymbol: 'X',
+    assignment: { opponent: 'rng' }, gameId: 'tic-tac-toe', id: 'fixture-double-line-win', humanSymbol: 'X',
     moves: [
       { ply: 1, symbol: 'X', cell: 0, actor: 'human', provenance: 'human' },
       { ply: 2, symbol: 'O', cell: 1, actor: 'cpu', provenance: 'rng' },
@@ -25,7 +25,7 @@ const doubleLineWin = {
     },
     outcome: { kind: 'win', winner: 'X', winningLines: [[0, 4, 8], [2, 4, 6]] },
   },
-  recovery: { consecutiveInvalid: 0 },
+  recovery: { consecutiveInvalid: 0, consecutiveServiceFailures: 0, disposition: 'ready' },
 }
 
 async function seedMatch(page: Page, match: unknown) {
@@ -47,7 +47,7 @@ test.describe('B4 responsive presentation', () => {
   ]) {
     test(`${viewport.width}×${viewport.height}: board, history, and controls fit`, async ({ page }) => {
       await page.setViewportSize(viewport)
-      await seedMatch(page, { schemaVersion: 1, match: humanTurnMatch, recovery: { consecutiveInvalid: 0 } })
+      await seedMatch(page, { schemaVersion: 2, match: humanTurnMatch, recovery: { consecutiveInvalid: 0, consecutiveServiceFailures: 0, disposition: 'ready' } })
 
       const board = page.getByRole('group', { name: 'Current Tic Tac Toe board' })
       await expect(board).toBeVisible()
@@ -129,7 +129,7 @@ test.describe('B5 browser controls', () => {
 
   test('reduced motion removes the pending move animation', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await seedMatch(page, { schemaVersion: 1, match: humanTurnMatch, recovery: { consecutiveInvalid: 0 } })
+    await seedMatch(page, { schemaVersion: 2, match: humanTurnMatch, recovery: { consecutiveInvalid: 0, consecutiveServiceFailures: 0, disposition: 'ready' } })
     await page.getByRole('button', { name: 'Settings' }).click()
     await page.getByRole('checkbox', { name: 'Confirm moves before playing' }).check()
     await page.getByRole('button', { name: 'C3, empty, play here' }).click()
@@ -139,7 +139,7 @@ test.describe('B5 browser controls', () => {
   })
 
   test('review keeps live status and disables empty historical cells', async ({ page }) => {
-    await seedMatch(page, { schemaVersion: 1, match: wonMatch, recovery: { consecutiveInvalid: 0 } })
+    await seedMatch(page, { schemaVersion: 2, match: wonMatch, recovery: { consecutiveInvalid: 0, consecutiveServiceFailures: 0, disposition: 'ready' } })
     await expect(page.getByRole('button', { name: 'Rematch' })).toBeVisible()
     const showHistory = page.getByRole('button', { name: 'Show history' })
     if (await showHistory.isVisible()) await showHistory.click()

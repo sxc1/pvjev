@@ -2,6 +2,7 @@ import type { ConnectFourCommand, ConnectFourSnapshot } from '../contracts'
 import { selectConnectFourPresentation } from '../games/connect-four/selectors'
 import { inspectionText } from '../games/connect-four/selectors'
 import { MoveHistory } from './MoveHistory'
+import { JevAnalysis } from './JevAnalysis'
 
 export interface ConnectFourHistoryProps {
   snapshot: ConnectFourSnapshot
@@ -18,6 +19,7 @@ export function ConnectFourHistory({ snapshot, dispatch }: ConnectFourHistoryPro
     {presentation.reviewing && presentation.reviewedMove && <div className="pv-inspection" aria-label="Move inspection">
       <p className="pv-inspection-title">Reviewing {presentation.entries[presentation.reviewedMove.ply - 1]?.label}</p>
       <p>{inspectionText(presentation.reviewedMove)}</p>
+      {presentation.reviewedMove.provenance === 'jev' && <JevAnalysis analysis={presentation.reviewedMove.analysis} moveLabel={id => `Column ${String.fromCharCode(65 + Number(id.slice(7)))}`} />}
     </div>}
   </MoveHistory>
 }

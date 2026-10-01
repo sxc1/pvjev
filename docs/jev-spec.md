@@ -1,125 +1,135 @@
 # Product requirements: Jev integration
 
-Status: Draft based on agreed product requirements. Shared requirements are defined in [product-spec.md](product-spec.md).
+Status: Agreed product requirements for specification; implementation is pending. Release scheduling belongs in [product-spec.md](product-spec.md), not this document.
 
-## 1. Product overview
+## 1. Product overview and scope
 
-Jev provides CPU moves for Play vs Jev. On each CPU turn, the application sends the current game state and every legal move to a single Choice question, applies a validated choice, and saves its confidence and leading move probabilities for later inspection.
+Jev provides CPU moves for Tic Tac Toe and Connect Four. On each CPU turn, the application sends the current game state and every legal move to one TypeSafe Choice question, applies a validated choice, and saves its confidence and leading move probabilities for later inspection.
 
-The game rules determine legal moves and outcomes. Jev selects among the legal moves. This document defines evaluation, credentials, request timing, retries, fallback, and retained analysis; the shared and game-specific specifications define gameplay and historical review.
+Game rules determine legal moves and outcomes. Jev selects among those moves through the shared CPU provider interface. Shared and game-specific specifications govern ordinary gameplay and historical review. This document governs Jev access, credentials, allowance, requests, analysis, and persistence, including the Jev-specific exceptions to ordinary Restart confirmation. Where older shared text conflicts on those subjects, these requirements take precedence.
 
-## 2. Goals and release scope
+Assume one browser tab actively controls play. Cross-tab synchronization is outside scope. The proposed global $5 spending cap remains deferred; no benchmark win rate or minimum model-quality target is required.
 
-1. Let visitors play against Jev and inspect the original decision behind each Jev move.
-2. Keep Jev separate from game rules and presentation through the shared CPU provider interface.
-3. Integrate Jev after the RNG tic tac toe milestone. Its order relative to Connect Four and chess remains flexible; each game adopts Jev when its integration is ready.
-4. Jev integration is deferred beyond v0.3. Its access and credential policy requires a later specification.
-5. A shared private TypeSafe key behind a relay service or minimal backend is a deferred proposal. Provider credentials would remain on that backend.
-6. Defer the proposed global $5 spending cap.
+## 2. Automatic opponent and credential selection
 
-## 3. Model and decision inputs
+1. Do not present an opponent selector. At match start, automatically use Jev when access is available; otherwise use RNG. Show which opponent the match is using.
+2. Guests and signed-in users may supply their own TypeSafe API key for either game. A supplied visitor key takes priority over the application's shared key, including for whitelisted accounts. Visitor-key play does not consume the application's daily allowance.
+3. Without a visitor key, signed-in whitelisted accounts may use the shared key for either game without the daily game limit.
+4. Without a visitor key, signed-in accounts outside the whitelist may use the shared key for one Connect Four match per rolling 24 hours. They use RNG for Tic Tac Toe and for additional Connect Four matches during that period.
+5. Guests without a visitor key use RNG. Google sign-in remains optional for RNG and visitor-key play.
+6. Record the automatically selected opponent (`jev` or `rng`) and, for Jev, the credential route (`visitor` or `shared`) when the match starts. Keep that assignment for the match. Adding a key, signing in, or gaining eligibility does not upgrade an existing RNG match.
+7. Do not automatically switch between visitor and shared keys during a match. A failed visitor key follows the failure rules in section 7; it must not silently use the application's key. Correcting or replacing a visitor key within the visitor route is allowed.
+8. An RNG fallback move within a Jev match does not change the match's opponent or credential route. Later CPU turns try Jev again through that same route. An explicit Restart creates a new match as described in section 4.
 
-1. Use `jev-latest` as the requested model.
-2. Submit one Choice question per CPU decision. Supply the current board state in the format defined for that game, without move history.
-3. Include the information needed to interpret that state, including the side to move and CPU side, through the game-defined representation or request context.
-4. Put the decision prompt in the Choice question's `instructions`. Define the exact prompt at implementation time for each game.
-5. Put all legal moves in `criteria`. Each criterion has a stable identifier mapping to one legal move and a description sufficient to interpret it. Do not shortlist moves before evaluation.
-6. Maintain prompt version notes in source-code comments. Do not expose prompt versions in the user interface. Using `jev-latest` intentionally allows the underlying model to change over time.
-7. Do not issue a request after the match has ended or when no legal move exists. The game rules resolve those states.
-8. The current game set fits the Choice limit of 255 options, including chess. No multi-request partitioning of the legal-move set is required.
+## 3. Relay, keys, and account allowance
 
-## 4. Move selection and validation
+### 3.1 Credential handling
 
-1. Select the move with the highest returned Choice probability. Do not sample randomly from the distribution except when resolving a tie through the permitted tie rule or applying an explicit RNG fallback.
-2. Use first legal-move index as the simple tie breaker: when multiple moves share the highest unrounded probability, choose the earliest of those moves in the supplied legal-move list.
-3. Validate the returned Choice answer before applying it. The choice must identify a supplied legal move and agree with a highest-probability option; probabilities must cover the supplied choices, and probabilities and confidence must be valid finite values in their expected ranges. Numerical validation tolerances are implementation details.
-4. If the returned choice differs from the application's first-index choice only because of an exact top tie, apply the first-index rule.
-5. Recheck legality against the intended live position before committing. Match, turn, and attempt identifiers must still match. Discard stale results without advancing failure counters.
-6. Invalid responses follow section 7. Never apply an illegal move.
+1. Send all Jev requests through a Supabase relay, including requests using visitor keys. The browser does not call TypeSafe directly and does not use the SDK's browser opt-in.
+2. Store the application's TypeSafe key as a Supabase server-side secret. Only the relay may read it; never send it to the browser or include it in the published bundle.
+3. Keep a visitor key only in browser memory for the active page session and transiently in the relay while handling its request. Never persist it in browser storage, cookies, a database, files, caches, saved matches, or retained analysis. Do not include keys in URLs, logs, error reports, or telemetry. Relay and SDK logging must not capture credential-bearing request bodies or headers. Do not retain visitor keys in a shared server-side client between requests.
+4. Allow visitors to enter, clear, correct, or replace their key. A reload loses the key. Saved visitor-key matches wait for key re-entry before another Jev request; this missing-key state is not a service failure and does not switch routes.
+5. The visitor-key relay path accepts guests and forwards only their supplied key. The shared-key path requires a verified Supabase session and server-side authorization. A missing or invalid visitor key must never cause the relay to substitute the shared secret.
+6. Authorize shared-key requests using the verified account identity, not a client-supplied user ID. Scope requests to the supported games and game evaluation contract; do not expose an unrestricted TypeSafe proxy. Configure and verify browser-to-relay access from the deployed application origin.
 
-## 5. Move history and analysis
+### 3.2 User extension and daily approval
 
-1. Begin each Jev move's history entry with its returned Choice confidence, followed by the game's normal move notation. Label the value as confidence where needed for clarity.
-2. Display per-choice classification probabilities in the move breakdown, using the label **Choice probability**. These values do not represent the chance of winning the game.
-3. Confidence describes the returned decision's probability distribution and is distinct from the probability assigned to the played move. Retain the provider's confidence rather than replacing it with the highest probability.
-4. Display confidence and probabilities to thousandth precision, as decimal values with three digits after the decimal point. Retain unrounded values for ranking and later display.
-5. A tie means equal highest unrounded probabilities. Display rounding alone does not create a tie. Show a simple caution tooltip next to history confidence when a tie occurred; explain that the first tied legal move was chosen. Make the caution accessible by touch on mobile.
-6. Evaluate the complete legal-move set, then retain and display at most its top ten choices. Sort by descending probability and use supplied legal-move order to break ranking ties. The played move is included in that retained list.
-7. Save the original retained probabilities, decision confidence, and tie information with the move. Preserve the resolved model ID from the response as internal metadata. Reopening analysis never calls Jev again.
-8. Saved scores describe the choices available before that move. The historical board follows the game's existing post-move review behavior.
-9. Human, RNG, and RNG-fallback moves have no Jev confidence or analysis. Label RNG provenance according to the shared specification.
+1. Create a separate user extension table referencing the primary key of `auth.users`. Include `userId`, nullable `approvedJevMatchId`, nullable `lastJevMatchStarted`, and `isWhitelisted` (default false), or equivalent SQL names. Deleting the user removes their extension row. Provide rows for existing and newly created accounts.
+2. Only trusted server operations may change whitelist status, approved match ID, or allowance timestamps. Clients cannot grant themselves access or edit the cooldown. Use appropriate table privileges and row-level access controls.
+3. For a non-whitelisted account starting a shared-key Connect Four match, submit the new client match UUID for server approval. Atomically check eligibility, store that UUID as the approved match ID, and set the start timestamp using server time. Eligibility requires no previous start or at least 24 hours since the previous start. Failed approval must not overwrite a valid approval or its timestamp.
+4. Approval consumes the allowance at Start, even if the player leaves before Jev makes a move. Abandonment, resignation, Restart, service failure, and RNG fallback do not refund it.
+5. Repeating approval for the same currently approved match ID is idempotent: it does not consume another allowance or advance the timestamp. If a start response is lost, reconcile or retry that same ID instead of generating another one.
+6. Every limited shared-key move request must have a verified session for the approving account, identify Connect Four, and match that account's approved match ID. Matching requests may continue the approved match during the cooldown. A match ID alone is not authentication. The client stores the approving account identity with the match so another account cannot resume it through the shared route.
+7. Whitelisted shared-key play and visitor-key play do not consume the daily allowance. Whitelist authorization is checked server-side for shared-key calls. A definitive allowance denial at setup selects RNG; an unknown approval result must be reconciled before declaring that a daily match did or did not start.
+8. Keep one approved daily match ID per account. Approving a new eligible match replaces the previous ID. Ending an approved match clears its approval without clearing or advancing `lastJevMatchStarted`; end operations clear only the matching ID so a stale operation cannot revoke a newer match.
+9. On restore, use the existing approved match ID and revalidate access rather than consuming a new allowance. Shared-key continuation requires the original account. Missing sign-in pauses that route until the account is available; it does not silently change credentials.
 
-## 6. Visitor credentials and browser access
+## 4. Resign, Restart, and statistics
 
-1. Ask the visitor for their own TypeSafe API key before making a Jev request. Support correcting or replacing the key after an authentication error.
-2. Keep the key in memory for the active page session. Do not include it in the published bundle, URL, saved match, retained analysis, logs, or browser persistent storage.
-3. Use the TypeSafe JavaScript SDK with its explicit browser opt-in and the visitor-supplied key.
-4. A missing key is a setup condition and does not count as a service failure. Preserve the match while waiting for key entry.
-5. When a saved match is restored on a CPU turn, automatically request its move once access is available. Credential and duplicate-request policy requires a later specification.
-6. Verify that a request from the deployed GitHub Pages origin succeeds, including browser CORS requirements, before enabling Jev publicly. SDK browser opt-in alone does not establish this.
+1. Preserve the shared rules for when Restart, Resign, and Rematch are available. Add a confirmation modal before Restart would discard an incomplete match using the daily shared-key allowance, including before its first move. Ordinary RNG, visitor-key, and unlimited whitelisted matches retain the ordinary confirmation rules.
+2. For an incomplete daily Jev match, both the Restart confirmation and the existing Resign confirmation explain that the daily allowance has already been used and ending the match will not restore it. Do not claim that resignation consumes it a second time. Cancelling the modal leaves the match and approval intact.
+3. Confirming Restart ends the approved match, invalidates pending attempts, retires its server approval, and starts a new RNG match with a new ID. This explicit Restart uses RNG even though normal match setup defaults to Jev when eligible. Never reuse the approved ID for the restarted board.
+4. Confirming Resign ends the match as a human loss, invalidates pending attempts, and retires approval. A normally completed approved match also retires approval. Keep completed history reviewable under the shared rules. Neither completion nor retirement refunds the allowance.
+5. Record statistics using the match's assigned opponent, not the final move's provenance or the key owner. A Jev match with RNG fallback moves remains a Jev result; the new RNG match after Restart is an RNG result. Visitor-key Jev matches count as Jev when the player is signed in at completion. Preserve the shared rule that guest completions are not counted retroactively.
 
-## 7. Requests, retries, and RNG fallback
+## 5. Model inputs and move validation
 
-### 7.1 Attempts and timing
+1. Request `jev-latest` with one Choice question per CPU decision. Send the current game-defined board state without move history, including enough context to identify the side to move and CPU side.
+2. Put the game-specific decision prompt in `instructions`. Put every legal move in `criteria`, with stable identifiers and descriptions sufficient to interpret the choices. Do not shortlist moves. Tic Tac Toe and Connect Four fit within the Choice limit of 255 options.
+3. Define exact prompts, serializers, criterion descriptions, and move identifiers during implementation. Maintain prompt version notes in source comments, not the UI. The `jev-latest` alias intentionally allows the underlying model to change.
+4. Do not issue a request after the match ends or when no legal moves exist. Rules resolve those states.
+5. Validate that the returned choice identifies a supplied legal move and agrees with a highest-probability option. Require exactly the expected probability entries, finite probabilities and confidence in their expected ranges, and a probability sum consistent with one. Numerical tolerances are implementation details.
+6. Select the highest unrounded probability. For an exact top tie, use the earliest tied move in the supplied legal-move list, even if the provider chose another tied option. Do not randomly sample Jev choices.
+7. Before committing, recheck legality and the live match, turn, and attempt identifiers. Reject expired, superseded, resigned, restarted, or replaced attempts without making a move or advancing failure counters. Invalid current answers follow section 7.
 
-1. Associate each product attempt with its match, turn, and attempt identifiers. One product attempt consists of one SDK call, including any SDK retries.
-2. Configure `maxRetries: 2` and `maxRetryAfterMs: 1500`. Other SDK retry settings use their defaults unless a later implementation finding requires an explicit change.
-3. Two retries permit up to three HTTP attempts. The server retry-delay setting does not define the duration of the whole SDK call.
-4. Start a separate client-side five-second deadline when the SDK call begins. It covers HTTP attempts and all waiting between them. At expiry, cancel the call and pending retries, stop accepting its result, and record one service failure.
-5. Keep the interface responsive during the call. Game-tab switching and historical review remain available, and a valid response can update the live match without changing the historical selection.
-6. Manual Retry starts a new product attempt with a fresh deadline and supersedes the previous attempt. Cancel superseded work where possible; identifier validation still protects against late results.
+## 6. Move history and retained analysis
+
+1. Begin a Jev history entry with the returned Choice confidence followed by normal move notation. Label confidence clearly. In the breakdown, label per-choice values **Choice probability**; they are not probabilities of winning the game.
+2. Retain the provider's confidence, which describes the decision distribution and is distinct from the played move's probability. Display confidence and probabilities to three decimal places; retain unrounded values.
+3. A tie means equal highest unrounded probabilities, not equal rounded display values. Show an accessible caution beside confidence explaining that the first tied legal move was chosen, including touch access on mobile.
+4. Evaluate all legal moves, then retain and display at most ten choices sorted by descending probability and then supplied legal-move order. Include the played move. Save confidence, tie information, and the resolved model ID with the move; the model ID is internal metadata.
+5. Scores describe choices before the move, while the historical board follows the game's post-move review behavior. Reopening analysis sends no request and never recomputes scores with a newer model or prompt.
+6. Human, RNG, and RNG-fallback moves have no Jev confidence or analysis. Distinguish fallback from ordinary RNG play and retain its diagnostic.
+
+## 7. Requests, deadlines, retries, and fallback
+
+### 7.1 Attempts and cancellation
+
+1. Identify every product attempt by match, turn, and attempt IDs. One attempt is a browser-to-relay request and the relay's TypeSafe SDK call, including SDK retries. Do not multiply retries by adding an independent automatic browser retry loop.
+2. Configure the relay SDK with `maxRetries: 2` and `maxRetryAfterMs: 1500`. This permits up to three upstream HTTP attempts; other SDK retry settings use defaults unless implementation findings require an explicit change.
+3. Start the five-second deadline when the browser dispatches the relay request. It covers the entire round trip, including relay authorization, TypeSafe processing, retry waits, and delivery back to the browser. The SDK's per-attempt timeout is not this deadline.
+4. At expiry, invalidate the attempt before aborting its browser request and count one service failure. Forward cancellation upstream where available and bound relay work with a server-side timeout. Do not depend on the relay detecting a browser disconnect to protect game state.
+5. Work already underway at the relay or TypeSafe may finish and incur usage after cancellation. This wasted usage is acceptable; refunding it or recovering its answer is not required. An expired answer must never make a move, update saved analysis, or count as a later success, even if cancellation failed.
+6. Manual Retry creates a fresh attempt and deadline, superseding the previous attempt. Resignation, Restart, and match replacement also invalidate outstanding attempts. Cancel superseded work where possible; attempt validation remains mandatory.
+7. Keep the UI responsive. Switching game tabs and reviewing history do not cancel a valid live-match request. A valid CPU response may update and save the live match without moving the historical selection.
 
 ### 7.2 Service failures
 
-1. A failed SDK call counts as one service failure, regardless of its internal HTTP retry count. The five-second overall deadline also counts as one service failure.
-2. Authentication, rate-limit, connection, and service errors count toward the same service-failure limit. Authentication errors receive no special exemption.
-3. Present rate-limit and authentication errors as toasts when the product attempt fails. Internal retries are part of the pending attempt and do not create separate failure counts or repeated toasts.
-4. After the first and second consecutive service failures, show the error and offer manual Retry. Do not automatically start another product attempt for a service failure.
-5. After the third consecutive service failure, surface an error and immediately apply a random legal move. Identify it as RNG fallback, record a service-failure reason, and attach no Jev analysis.
-6. Reset the consecutive service-failure count after a successful Jev move. Counters belong to the match, not other game tabs; a new match starts with zero failures. Cancellation caused by retry, resignation, or match replacement does not itself count as a failure.
-7. SDK retries and the act of pressing Retry do not independently increment counters. Service failures do not count as invalid CPU responses.
+1. A failed relay/SDK attempt or five-second deadline counts as one service failure regardless of internal HTTP retries. Authentication, authorization, rate-limit, connection, and service errors use this counter. Missing visitor-key entry or waiting for required sign-in is a setup state, not a failed request.
+2. Show authentication and rate-limit errors as toasts when the product attempt fails. Do not create separate counts or repeated toasts for internal retries.
+3. After the first and second consecutive service failures, show the error and offer manual Retry. Do not automatically start another product attempt for a service failure. Allow a visitor key to be corrected before retrying through the same route.
+4. After the third consecutive service failure, surface an error and apply a legal random move with RNG-fallback provenance and a service-failure diagnostic, without Jev analysis.
+5. A successful Jev move resets the service-failure count. Counts belong to the current match. Cancellation due to Retry, resignation, or match replacement is not itself a failure. Service failures do not increment the invalid-response counter.
 
 ### 7.3 Invalid responses
 
-1. A completed SDK call containing an invalid CPU answer increments the separate invalid-response counter. Automatically request another answer until there have been three consecutive invalid responses total.
-2. Reset the invalid-response counter after a valid Jev move. Service failures and manual retries do not advance it; an invalid answer does not reset the service-failure counter because no successful Jev move occurred.
-3. After the third invalid response, surface an error and apply a random legal move. Record exactly: "Rejected illegal move attempted by Jev, fell back to random move".
-4. Identify that move as RNG fallback and attach no Jev analysis. Service-failure fallback uses its own diagnostic rather than the illegal-move message.
-5. Both fallback paths select from freshly computed legal moves using trusted RNG logic. Fallback ends the failed CPU turn; start the next CPU turn's recovery counters at zero.
+1. An invalid current CPU answer increments a separate invalid-response counter. Automatically request another answer until there have been three invalid responses without a successful Jev move.
+2. A valid Jev move resets the invalid-response counter. Service failures and manual retries do not advance it. An invalid answer does not reset the service-failure counter.
+3. After the third invalid response, surface an error and apply a random legal move. Record exactly: "Rejected illegal move attempted by Jev, fell back to random move". Give it RNG-fallback provenance and no Jev analysis. Service-failure fallback uses its own diagnostic.
+4. Both fallback paths use freshly computed legal moves and trusted RNG logic. Fallback ends the failed CPU turn and resets both recovery counters for the next CPU turn. It does not switch credential routes or refund an allowance.
 
 ## 8. Persistence and architecture
 
-1. Preserve the current match, move sequence, Jev provenance, and retained analysis through the shared local-persistence mechanism. Do not retain the full choice distribution beyond the top ten.
-2. Keep recovery counts with the current match so refreshing cannot restart a partially failed turn's counters. Request controllers, timers, and credentials remain runtime data.
-3. Keep game-state encoding and legal-move mapping in the game integration, network evaluation in the Jev provider, and request coordination and presentation in their existing shared boundaries.
-4. Saved history remains readable without a key or network access. A saved analysis view never recomputes the decision using the current model or prompt.
+1. Save the current match ID, selected opponent, credential route, approving account identity where applicable, moves, outcomes, Jev provenance, and retained analysis locally. Preserve both recovery counters so refresh cannot erase a partially failed turn. Never save a TypeSafe key or a transient request controller, timer, or pending attempt.
+2. Restoring a CPU turn creates a fresh attempt only after access for its saved route is available. Reuse the saved match ID and approval. A saved visitor-key match waits for key re-entry; it cannot fall through to the shared secret.
+3. Saved history remains readable without credentials or network access. Do not retain the full probability distribution beyond the top ten.
+4. There are no existing users requiring save migration. Update the local schema as needed; old incompatible matches may be discarded through a clear fresh-start path. No backward-compatible migration is required.
+5. Keep state encoding and legal-move mapping in game integrations, TypeSafe evaluation in the relay/provider, and request coordination and presentation in their existing boundaries. Supabase stores account access and aggregate statistics; full game histories remain local.
 
 ## 9. Acceptance criteria
 
-1. Every Jev turn evaluates every legal move with one Choice question using `jev-latest`, a game-specific prompt, and the current game-defined board state without history.
-2. A valid applied move has the highest unrounded probability; an exact top tie uses first legal-move index and shows the tie caution next to history confidence.
-3. Confidence and Choice probabilities display to three decimal places. Inspection retains no more than ten ranked choices and sends no network request.
-4. Visitor keys are required for new Jev calls, held only in session memory, and absent from the bundle and persisted data. Restoring a CPU turn waits for key re-entry when necessary and then resumes automatically.
-5. SDK calls use `maxRetries: 2` and `maxRetryAfterMs: 1500`. The separate five-second deadline cancels pending retries and rejects late results as one failed product attempt.
-6. Rate-limit and authentication failures show toasts. The first two consecutive service failures offer manual Retry; the third applies a legal RNG fallback. A successful Jev move resets the service-failure count.
-7. Three invalid responses trigger a legal RNG fallback with the exact required diagnostic. Service failures do not advance that counter, and fallback carries no Jev analysis.
-8. Results from expired, superseded, resigned, or replaced matches never apply a move. Responses received during review preserve the selected historical position.
-9. Browser requests succeed from the deployed GitHub Pages origin before public Jev enablement.
-10. Source comments track prompt versions without exposing them in the product UI. Changes to the prompt or model do not alter previously saved analysis.
+1. Both games automatically choose Jev with a supplied visitor key or whitelisted shared-key access. Guests without a key use RNG. Non-whitelisted shared-key access applies only to an eligible Connect Four match; Tic Tac Toe uses RNG without a visitor key.
+2. Visitor keys override the shared key, pass through the relay, and are never persisted or logged. Guest calls cannot obtain use of the shared secret. Visitor-key reloads wait for re-entry without changing routes.
+3. Server-side approval atomically consumes the daily allowance at Start using server time. Repeated approval of the same ID is idempotent. Subsequent limited requests require the same approved ID and authenticated account. Clients cannot edit whitelist or allowance fields.
+4. Cancelling Restart or Resign preserves the approved match. Confirming Restart warns, ends approval without refund, invalidates pending work, and creates a new RNG match. Confirming Resign records the Jev loss and retires approval. Late answers from either ended match make no move.
+5. Match statistics preserve Jev identity across RNG fallback and distinguish the new RNG match after Restart.
+6. Each Jev decision evaluates every legal move once per SDK HTTP attempt using one Choice question and `jev-latest`. The selected move has the highest probability; exact ties use supplied legal-move order.
+7. Analysis retains at most ten choices, original confidence, tie metadata, and resolved model ID. Values display to three decimals; history inspection makes no network call.
+8. The five-second deadline covers the whole round trip. Tests with uncancellable and late relay responses prove that expired and superseded answers cannot apply moves or analysis. Continued upstream usage after abort is acceptable.
+9. SDK retries, service failures, invalid answers, manual Retry, and fallback obey section 7 without double-counting. Recovery counters survive refresh and reset after fallback.
+10. Deployed relay checks cover guest visitor-key calls, authenticated shared-key calls, forbidden access, allowance consumption and continuation, and absence of keys from persisted data and application logs. Mocks alone do not establish deployed relay behavior.
 
-## 10. Deferred work and implementation decisions
+## 10. Implementation decisions and references
 
-1. A shared private key and relay service or minimal backend are deferred; access controls, deployment, and operational details need a later specification.
-2. The global $5 spending cap remains deferred.
-3. Exact prompts, criterion descriptions, serializers, move identifiers, validation tolerances, credential-entry layout, and toast and tooltip wording are implementation decisions within these requirements.
-4. No benchmark win rate or minimum model-quality target is required for Jev integration.
-
-## 11. References
+Exact prompts, request/response types, serializers, numerical tolerances, schema names, relay deployment details, key-entry layout, and toast/tooltip wording are implementation decisions within these requirements. The global $5 cap remains deferred.
 
 - [Shared product requirements](product-spec.md)
-- [Tic tac toe](tic-tac-toe-spec.md), [Connect Four](connect-four-spec.md), and [chess](chess-spec.md)
+- [Tic Tac Toe](tic-tac-toe-spec.md) and [Connect Four](connect-four-spec.md)
 - [Choice primitive](https://docs.typesafe.ai/primitives/choice)
 - [Models and aliases](https://docs.typesafe.ai/models)
 - [JavaScript client configuration](https://docs.typesafe.ai/sdk/javascript/api/interfaces/TypeSafeClientConfig)
 - [JavaScript retry policy](https://docs.typesafe.ai/sdk/javascript/api/interfaces/RetryPolicy)
 - [Request options and cancellation](https://docs.typesafe.ai/sdk/javascript/api/interfaces/RequestOptions)
+- [Supabase user extension tables](https://supabase.com/docs/guides/auth/managing-user-data)
+- [Supabase Edge Function authentication](https://supabase.com/docs/guides/functions/auth)
+- [Supabase secrets](https://supabase.com/docs/guides/functions/secrets)

@@ -40,7 +40,7 @@ export function selectConnectFourPresentation(snapshot: ConnectFourSnapshot): Co
   const placementPlyByCell = new Map(prefix.map(move => [move.landingCell, move.ply]))
   return {
     position,
-    entries: moves.map(record => ({ ply: record.ply, label: historyLabel(record), selected: reviewing && record.ply === selectedPly, record })),
+    entries: moves.map(record => ({ ply: record.ply, label: record.provenance === 'jev' ? `Confidence ${record.analysis.confidence.toFixed(3)} ${historyLabel(record)}` : historyLabel(record), selected: reviewing && record.ply === selectedPly, record })),
     reviewing,
     selectedPly,
     reviewedMove,

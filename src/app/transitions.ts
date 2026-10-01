@@ -1,3 +1,4 @@
+import type { OpponentAssignment, JevAnalysis } from '../contracts/jev'
 import type { CommandResult, TicTacToeCommand, TicTacToeMatch, TicTacToeMoveRecord, TicTacToeSnapshot, TicTacToeViewState } from '../contracts'
 import { applyMove, initialPosition, isCellIndex, isLegalMove } from '../games/tic-tac-toe/rules'
 
@@ -8,21 +9,23 @@ export const liveView = (): TicTacToeViewState => ({
 export function emptySnapshot(): TicTacToeSnapshot {
   return {
     selectedGame: 'tic-tac-toe', setupSymbol: 'X', match: null, view: liveView(),
-    request: { status: 'idle', consecutiveInvalid: 0 }, settings: { confirmMoves: false }, notices: [],
+    request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 }, settings: { confirmMoves: false }, notices: [],
   }
 }
 
-export function createMatch(id: string, humanSymbol: 'X' | 'O'): TicTacToeMatch {
+export function createMatch(id: string, humanSymbol: 'X' | 'O', assignment: OpponentAssignment = { opponent: 'rng' }): TicTacToeMatch {
   const position = initialPosition()
-  return { gameId: 'tic-tac-toe', id, humanSymbol, moves: [], position, outcome: position.outcome }
+  return { assignment, gameId: 'tic-tac-toe', id, humanSymbol, moves: [], position, outcome: position.outcome }
 }
 
-export function appendMove(match: TicTacToeMatch, cell: number, actor: 'human' | 'cpu', diagnostic?: string): TicTacToeMatch {
+export function appendMove(match: TicTacToeMatch, cell: number, actor: 'human' | 'cpu', diagnostic?: string, analysis?: JevAnalysis): TicTacToeMatch {
   const symbol = match.position.nextSymbol
   const position = applyMove(match.position, cell)
   const record: TicTacToeMoveRecord = actor === 'human'
     ? { ply: match.moves.length + 1, symbol, cell, actor, provenance: 'human' }
-    : diagnostic === undefined
+    : analysis !== undefined
+      ? { ply: match.moves.length + 1, symbol, cell, actor, provenance: 'jev', analysis }
+      : diagnostic === undefined
       ? { ply: match.moves.length + 1, symbol, cell, actor, provenance: 'rng' }
       : { ply: match.moves.length + 1, symbol, cell, actor, provenance: 'rng-fallback', diagnostic }
   return { ...match, moves: [...match.moves, record], position, outcome: position.outcome }
@@ -48,11 +51,11 @@ export function transition(snapshot: TicTacToeSnapshot, command: TicTacToeComman
       return snapshot.setupSymbol === command.symbol ? ignored(snapshot) : applied({ ...snapshot, setupSymbol: command.symbol })
     case 'start-game':
       if (match || !newMatchId) return ignored(snapshot)
-      return applied({ ...snapshot, match: createMatch(newMatchId, snapshot.setupSymbol), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 } }, 'match')
+      return applied({ ...snapshot, match: createMatch(newMatchId, snapshot.setupSymbol), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'match')
     case 'restart':
       if (!match) return snapshot.setupSymbol === 'X' ? ignored(snapshot) : applied({ ...snapshot, setupSymbol: 'X', view: liveView() })
       if (match.moves.length || !newMatchId) return ignored(snapshot)
-      return applied({ ...snapshot, match: createMatch(newMatchId, match.humanSymbol), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 } }, 'match')
+      return applied({ ...snapshot, match: createMatch(newMatchId, match.humanSymbol, match.assignment), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'match')
     case 'open-resignation':
       if (!match || match.outcome.kind !== 'ongoing' || !match.moves.length || view.resignationDialogOpen) return ignored(snapshot)
       return applied({ ...snapshot, view: { ...view, resignationDialogOpen: true, pendingCell: null } })
@@ -60,10 +63,10 @@ export function transition(snapshot: TicTacToeSnapshot, command: TicTacToeComman
       return view.resignationDialogOpen ? applied({ ...snapshot, view: { ...view, resignationDialogOpen: false } }) : ignored(snapshot)
     case 'confirm-resignation':
       if (!match || match.outcome.kind !== 'ongoing' || !view.resignationDialogOpen) return ignored(snapshot, 'stale')
-      return applied({ ...snapshot, match: { ...match, outcome: { kind: 'resignation', resigningSymbol: match.humanSymbol, winner: match.humanSymbol === 'X' ? 'O' : 'X', ply: match.moves.length } }, view: { ...view, resignationDialogOpen: false, pendingCell: null }, request: { status: 'idle', consecutiveInvalid: 0 } }, 'match')
+      return applied({ ...snapshot, match: { ...match, outcome: { kind: 'resignation', resigningSymbol: match.humanSymbol, winner: match.humanSymbol === 'X' ? 'O' : 'X', ply: match.moves.length } }, view: { ...view, resignationDialogOpen: false, pendingCell: null }, request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'match')
     case 'rematch':
       if (!match || match.outcome.kind === 'ongoing') return ignored(snapshot)
-      return applied({ ...snapshot, setupSymbol: match.humanSymbol, match: null, view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 } }, 'remove-match')
+      return applied({ ...snapshot, setupSymbol: match.humanSymbol, match: null, view: liveView(), request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'remove-match')
     case 'activate-cell': {
       if (!match || !isCellIndex(command.cell)) return ignored(snapshot)
       const placement = match.moves.find(move => move.cell === command.cell)

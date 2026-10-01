@@ -1,22 +1,23 @@
+import type { OpponentAssignment, JevAnalysis } from '../contracts/jev'
 import type { CommandResult, ConnectFourCommand, ConnectFourMatch, ConnectFourMoveRecord, ConnectFourSetup, ConnectFourSnapshot, ConnectFourViewState } from '../contracts'
 import { applyMove, initialPosition, isLegalMove } from '../games/connect-four/rules'
 
 export const liveView = (): ConnectFourViewState => ({ location: { mode: 'live' }, pendingColumn: null, mobileHistoryOpen: false, resignationDialogOpen: false })
 
 export function emptySnapshot(): ConnectFourSnapshot {
-  return { setup: { humanColor: 'red', humanOrder: 'first' }, match: null, view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 }, settings: { confirmMoves: false }, notices: [] }
+  return { setup: { humanColor: 'red', humanOrder: 'first' }, match: null, view: liveView(), request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 }, settings: { confirmMoves: false }, notices: [] }
 }
 
 export function humanPlayer(setup: ConnectFourSetup): 'one' | 'two' {
   return setup.humanOrder === 'first' ? 'one' : 'two'
 }
 
-export function createMatch(id: string, setup: ConnectFourSetup): ConnectFourMatch {
+export function createMatch(id: string, setup: ConnectFourSetup, assignment: OpponentAssignment = { opponent: 'rng' }): ConnectFourMatch {
   const position = initialPosition()
-  return { gameId: 'connect-four', id, setup, moves: [], position, outcome: position.outcome }
+  return { assignment, gameId: 'connect-four', id, setup, moves: [], position, outcome: position.outcome }
 }
 
-export function appendMove(match: ConnectFourMatch, column: number, actor: 'human' | 'cpu', diagnostic?: string): ConnectFourMatch {
+export function appendMove(match: ConnectFourMatch, column: number, actor: 'human' | 'cpu', diagnostic?: string, analysis?: JevAnalysis): ConnectFourMatch {
   const player = match.position.nextPlayer
   const color = player === humanPlayer(match.setup) ? match.setup.humanColor : match.setup.humanColor === 'red' ? 'yellow' : 'red'
   const position = applyMove(match.position, column)
@@ -24,7 +25,9 @@ export function appendMove(match: ConnectFourMatch, column: number, actor: 'huma
   const base = { ply: match.moves.length + 1, column, landingCell, player, color }
   const record: ConnectFourMoveRecord = actor === 'human'
     ? { ...base, actor, provenance: 'human' }
-    : diagnostic === undefined
+    : analysis !== undefined
+      ? { ...base, actor, provenance: 'jev', analysis }
+      : diagnostic === undefined
       ? { ...base, actor, provenance: 'rng' }
       : { ...base, actor, provenance: 'rng-fallback', diagnostic }
   return { ...match, moves: [...match.moves, record], position, outcome: position.outcome }
@@ -53,11 +56,11 @@ export function transition(snapshot: ConnectFourSnapshot, command: ConnectFourCo
       return snapshot.setup.humanOrder === command.order ? ignored(snapshot) : applied({ ...snapshot, setup: { ...snapshot.setup, humanOrder: command.order } })
     case 'start-game':
       if (match || !newMatchId) return ignored(snapshot)
-      return applied({ ...snapshot, match: createMatch(newMatchId, snapshot.setup), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 } }, 'match')
+      return applied({ ...snapshot, match: createMatch(newMatchId, snapshot.setup), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'match')
     case 'restart':
       if (!match) return ignored(snapshot)
       if (match.moves.length || !newMatchId) return ignored(snapshot)
-      return applied({ ...snapshot, match: createMatch(newMatchId, match.setup), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 } }, 'match')
+      return applied({ ...snapshot, match: createMatch(newMatchId, match.setup, match.assignment), view: liveView(), request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'match')
     case 'open-resignation':
       if (!match || match.outcome.kind !== 'ongoing' || !match.moves.length || view.resignationDialogOpen) return ignored(snapshot)
       return applied({ ...snapshot, view: { ...view, resignationDialogOpen: true, pendingColumn: null } })
@@ -67,11 +70,11 @@ export function transition(snapshot: ConnectFourSnapshot, command: ConnectFourCo
       if (!match || match.outcome.kind !== 'ongoing' || !view.resignationDialogOpen) return ignored(snapshot, 'stale')
       const resigningPlayer = humanPlayer(match.setup)
       return applied({ ...snapshot, match: { ...match, outcome: { kind: 'resignation', resigningPlayer, winner: resigningPlayer === 'one' ? 'two' : 'one', ply: match.moves.length } },
-        view: { ...view, resignationDialogOpen: false, pendingColumn: null }, request: { status: 'idle', consecutiveInvalid: 0 } }, 'match')
+        view: { ...view, resignationDialogOpen: false, pendingColumn: null }, request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'match')
     }
     case 'rematch':
       if (!match || match.outcome.kind === 'ongoing') return ignored(snapshot)
-      return applied({ ...snapshot, setup: match.setup, match: null, view: liveView(), request: { status: 'idle', consecutiveInvalid: 0 } }, 'remove-match')
+      return applied({ ...snapshot, setup: match.setup, match: null, view: liveView(), request: { status: 'idle', consecutiveInvalid: 0, consecutiveServiceFailures: 0 } }, 'remove-match')
     case 'select-column':
       if (!match || view.location.mode !== 'live' || match.outcome.kind !== 'ongoing' || match.position.nextPlayer !== humanPlayer(match.setup) || !isLegalMove(match.position, command.column)) return ignored(snapshot)
       return snapshot.settings.confirmMoves

@@ -1,12 +1,13 @@
 import type { CpuProvider, GameId, RulesAdapter } from './game'
 import type { TicTacToeMatch, TicTacToeMove, TicTacToePosition, TicTacToeSymbol, TicTacToeViewState } from './tic-tac-toe'
 import type { ConnectFourColor, ConnectFourHumanOrder, ConnectFourMatch, ConnectFourMove, ConnectFourPosition, ConnectFourSetup, ConnectFourViewState } from './connect-four'
+import type { JevProvider } from './jev'
 
 /** A terminal transition from the human player's perspective. */
 export interface MatchCompletedEvent {
   readonly gameId: 'tic-tac-toe' | 'connect-four'
   readonly matchId: string
-  readonly opponent: 'rng'
+  readonly opponent: 'rng' | 'jev'
   readonly result: 'win' | 'loss' | 'draw'
 }
 
@@ -19,9 +20,15 @@ export interface RequestToken {
 }
 
 export type RequestState =
-  | { readonly status: 'idle'; readonly consecutiveInvalid: number }
-  | { readonly status: 'pending'; readonly token: RequestToken; readonly startedAt: number; readonly retryAvailable: boolean; readonly consecutiveInvalid: number }
-  | { readonly status: 'failed'; readonly token: RequestToken; readonly error: string; readonly retryAvailable: true; readonly consecutiveInvalid: number }
+  | { readonly status: 'idle' | 'waiting-for-key'; readonly disposition?: 'ready' | 'manual-retry-required'; readonly retryAvailable?: false; readonly consecutiveInvalid: number; readonly consecutiveServiceFailures: number }
+  | { readonly status: 'pending'; readonly disposition?: 'ready'; readonly token: RequestToken; readonly startedAt: number; readonly retryAvailable: boolean; readonly consecutiveInvalid: number; readonly consecutiveServiceFailures: number }
+  | { readonly status: 'failed'; readonly disposition?: 'manual-retry-required'; readonly token: RequestToken; readonly error: string; readonly retryAvailable: true; readonly consecutiveInvalid: number; readonly consecutiveServiceFailures: number }
+
+export interface VisitorKeySource {
+  getKey(): string | null
+  getRevision(): number
+  subscribe(listener: () => void): () => void
+}
 
 export interface Settings { readonly confirmMoves: boolean }
 
@@ -118,6 +125,8 @@ export interface ConnectFourController {
 export interface ConnectFourControllerDependencies {
   readonly rules: RulesAdapter<ConnectFourPosition, ConnectFourMove, 'one' | 'two'>
   readonly cpu: CpuProvider<ConnectFourPosition, ConnectFourMove>
+  readonly jev?: JevProvider<ConnectFourPosition, ConnectFourMove, 'one' | 'two'>
+  readonly visitorKey?: VisitorKeySource
   readonly storage: () => KeyValueStorage
   readonly scheduler: Scheduler
   readonly random: () => number
@@ -153,6 +162,8 @@ export interface Scheduler {
 export interface ControllerDependencies {
   readonly rules: RulesAdapter<TicTacToePosition, TicTacToeMove, TicTacToeSymbol>
   readonly cpu: CpuProvider<TicTacToePosition, TicTacToeMove>
+  readonly jev?: JevProvider<TicTacToePosition, TicTacToeMove, TicTacToeSymbol>
+  readonly visitorKey?: VisitorKeySource
   /** Acquisition is injectable because browser storage access itself can throw. */
   readonly storage: () => KeyValueStorage
   readonly scheduler: Scheduler

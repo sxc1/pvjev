@@ -1,6 +1,8 @@
 import type { TicTacToeScreenProps } from '../contracts'
 import { inspectionText, selectTicTacToePresentation } from '../games/tic-tac-toe/selectors'
 import { MoveHistory } from './MoveHistory'
+import { JevAnalysis } from './JevAnalysis'
+import { cellCoordinate } from '../games/tic-tac-toe/notation'
 import './tic-tac-toe-widgets.css'
 
 export function TicTacToeHistory({ snapshot, dispatch }: TicTacToeScreenProps) {
@@ -15,6 +17,7 @@ export function TicTacToeHistory({ snapshot, dispatch }: TicTacToeScreenProps) {
           <div className="ttt-inspection" aria-label="Move inspection">
             <p className="ttt-inspection-title">Reviewing {presentation.entries[presentation.reviewedMove.ply - 1]?.label}</p>
             <p>{inspectionText(presentation.reviewedMove)}</p>
+            {presentation.reviewedMove.provenance === 'jev' && <JevAnalysis analysis={presentation.reviewedMove.analysis} moveLabel={id => cellCoordinate(Number(id.slice(5)))} />}
           </div>
         )}
     </MoveHistory>

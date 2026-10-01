@@ -17,7 +17,8 @@ This document defines shared behavior. Game-specific rules and interactions belo
 | v0.1 | React SPA with playable tic tac toe and random legal CPU moves. Establish the shared application, CPU abstraction, review flow, and local persistence. Show all three game tabs, with unimplemented games disabled. |
 | v0.2 | Add playable Connect Four with a random legal CPU opponent. |
 | v0.3 | Add optional Google sign-in and a minimal Supabase SQL database for player identity and personal win/loss/draw totals. Show those totals in the app. |
-| Later | Chess and Jev integration. Jev access is limited by account eligibility as described below. Their release boundaries remain to be specified. |
+| v0.4 | Add Jev as a CPU opponent, with access limited by account eligibility as described below. |
+| v0.5 | Add playable chess. |
 
 Jev-specific requirements apply when that provider is implemented, not to the RNG-only milestone. Each game becomes enabled when its implementation is available.
 
@@ -183,7 +184,7 @@ Game-specific rule acceptance criteria will be expanded in each child spec. No b
 ## 11. Assumptions and deferred decisions
 
 1. Jev access eligibility and introductory allowance are defined in section 4.4. Credential delivery and spending policy require a later specification. The global $5 spending cap is deferred.
-2. Connect Four is scheduled for v0.2. The order of chess and Jev implementation remains flexible.
+2. Connect Four is scheduled for v0.2, Jev integration for v0.4, and chess for v0.5.
 3. Local-storage failure behavior in section 7 is a proposed default requiring confirmation.
 4. Precise mobile panel placement, responsive breakpoints, and visual styling are implementation decisions.
 5. Unresolved game rules and interactions remain in the child specs; they do not imply additional committed features.

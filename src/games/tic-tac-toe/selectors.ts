@@ -73,7 +73,7 @@ export function selectTicTacToePresentation(snapshot: TicTacToeSnapshot): TicTac
     cells,
     entries: moves.map((record): HistoryEntryView => ({
       ply: record.ply,
-      label: historyLabel(record.ply, record.symbol, record.cell),
+      label: record.provenance === 'jev' ? `Confidence ${record.analysis.confidence.toFixed(3)} ${historyLabel(record.ply, record.symbol, record.cell)}` : historyLabel(record.ply, record.symbol, record.cell),
       selected: record.ply === selectedPly,
       record,
     })),
@@ -88,6 +88,7 @@ export function selectTicTacToePresentation(snapshot: TicTacToeSnapshot): TicTac
 
 export function inspectionText(record: TicTacToeMoveRecord): string {
   if (record.actor === 'human') return `Your ${record.symbol} move at ${cellCoordinate(record.cell)}.`
+  if (record.provenance === 'jev') return `Jev move at ${cellCoordinate(record.cell)}.`
   if (record.provenance === 'rng-fallback') return `Random fallback at ${cellCoordinate(record.cell)}. ${record.diagnostic}`
   return `Random CPU move at ${cellCoordinate(record.cell)}.`
 }

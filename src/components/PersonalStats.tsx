@@ -16,7 +16,7 @@ export function PersonalStats({ stats, gameId, onRetry }: {
       <thead><tr><th scope="col">Opponent</th><th scope="col">Wins</th><th scope="col">Losses</th><th scope="col">Draws</th></tr></thead>
       <tbody>
         <tr><th scope="row">RNG</th><td>{row.winRng}</td><td>{row.lossRng}</td><td>{row.drawRng}</td></tr>
-        <tr><th scope="row">Jev <span className="pv-stats-note">(unavailable)</span></th><td>{row.winJev}</td><td>{row.lossJev}</td><td>{row.drawJev}</td></tr>
+        <tr><th scope="row">Jev</th><td>{row.winJev}</td><td>{row.lossJev}</td><td>{row.drawJev}</td></tr>
       </tbody>
     </table>}
   </section>

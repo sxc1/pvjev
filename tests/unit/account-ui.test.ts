@@ -30,7 +30,7 @@ describe('shared account UI', () => {
     expect(ticMarkup).toContain('scope="col">Wins')
     expect(ticMarkup).toContain('scope="row">RNG</th><td>2</td><td>1</td><td>3</td>')
     expect(cfMarkup).toContain('scope="row">RNG</th><td>4</td><td>5</td><td>6</td>')
-    expect(ticMarkup).toContain('Jev <span class="pv-stats-note">(unavailable)</span>')
+    expect(ticMarkup).toContain('scope="row">Jev</th><td>0</td><td>0</td><td>0</td>')
     expect(ticMarkup).not.toContain('lastMatchId')
   })
   it('distinguishes a failed read from zero totals and renders one dismissible live notice', () => {

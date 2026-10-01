@@ -10,13 +10,18 @@ export default function App() {
   const { host, selectedGame } = useApplicationHost()
   const { snapshot, dispatch } = useTicTacToeController()
   const connectFour = useConnectFourController()
-  const { auth, statistics, services } = useAccountServices()
+  const { auth, statistics, visitorKey, services } = useAccountServices()
   const account: AccountViewModel = {
     auth, statistics,
     onSignIn: () => { void services.auth.signIn() },
     onSignOut: () => { void services.auth.signOut() },
     onRetryStats: () => services.statistics.retryLoad(),
     onDismissResultNotice: id => services.statistics.dismissNotice(id),
+    visitorKey: visitorKey && services.visitorKey ? {
+      snapshot: visitorKey,
+      onSave: value => services.visitorKey!.saveKey(value),
+      onClear: () => services.visitorKey!.clear(),
+    } : undefined,
   }
   return selectedGame === 'connect-four' ? <ConnectFourScreen
     snapshot={connectFour.snapshot}

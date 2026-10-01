@@ -1,4 +1,5 @@
 import type { GameId } from './game'
+import type { JevAnalysis, OpponentAssignment } from './jev'
 
 /** Cell indices are row-major, from A3 (0) to C1 (8). Runtime input still needs validation. */
 export type TicTacToeMove = number
@@ -27,17 +28,19 @@ export interface TicTacToePosition {
   readonly winningLines: readonly TicTacToeWinningLine[]
 }
 
-export type TicTacToeMoveRecord<Analysis = never> = {
+export type TicTacToeMoveRecord<Analysis = JevAnalysis> = {
   readonly ply: number
   readonly symbol: TicTacToeSymbol
   readonly cell: TicTacToeMove
 } & (
   | { readonly actor: 'human'; readonly provenance: 'human'; readonly analysis?: never; readonly diagnostic?: never }
-  | { readonly actor: 'cpu'; readonly provenance: 'rng'; readonly analysis?: Analysis; readonly diagnostic?: never }
+  | { readonly actor: 'cpu'; readonly provenance: 'rng'; readonly analysis?: never; readonly diagnostic?: never }
   | { readonly actor: 'cpu'; readonly provenance: 'rng-fallback'; readonly diagnostic: string; readonly analysis?: never }
+  | { readonly actor: 'cpu'; readonly provenance: 'jev'; readonly analysis: Analysis; readonly diagnostic?: never }
 )
 
-export interface TicTacToeMatch<Analysis = never> {
+export interface TicTacToeMatch<Analysis = JevAnalysis> {
+  readonly assignment: OpponentAssignment
   readonly gameId: Extract<GameId, 'tic-tac-toe'>
   readonly id: string
   readonly humanSymbol: TicTacToeSymbol

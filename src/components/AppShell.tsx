@@ -7,6 +7,7 @@ import type { StatisticsSnapshot } from '../contracts/statistics'
 import { AccountControls } from './AccountControls'
 import { PersonalStats } from './PersonalStats'
 import { ResultToast } from './ResultToast'
+import { VisitorKeyControls, type VisitorKeyViewModel } from './VisitorKeyControls'
 
 const gameIcons = { 'tic-tac-toe': TicTacToe, 'connect-four': Columns4, chess: ChessRook }
 
@@ -17,6 +18,7 @@ export interface AccountViewModel {
   readonly onSignOut: () => void
   readonly onRetryStats: () => void
   readonly onDismissResultNotice: (id: string) => void
+  readonly visitorKey?: VisitorKeyViewModel
 }
 
 export function AppShell({ children, selectedGame = 'tic-tac-toe', onSelectGame, settings, onConfirmMoves, account }: {
@@ -65,6 +67,7 @@ export function AppShell({ children, selectedGame = 'tic-tac-toe', onSelectGame,
       </div>
       </div>
     </header>
+    {account?.visitorKey && <VisitorKeyControls keyView={account.visitorKey} />}
     {account && account.auth.status === 'signed-in' && selectedGame !== 'chess' && <PersonalStats stats={account.statistics} gameId={selectedGame} onRetry={account.onRetryStats} />}
     {account && <ResultToast notices={account.statistics.notices} onDismiss={account.onDismissResultNotice} />}
     {children}

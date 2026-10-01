@@ -7,7 +7,7 @@ export const emptyPosition: TicTacToePosition = {
 }
 
 export const humanTurnMatch: TicTacToeMatch = {
-  gameId: 'tic-tac-toe', id: 'fixture-human-turn', humanSymbol: 'X',
+  assignment: { opponent: 'rng' }, gameId: 'tic-tac-toe', id: 'fixture-human-turn', humanSymbol: 'X',
   moves: [
     { ply: 1, symbol: 'X', cell: 0, actor: 'human', provenance: 'human' },
     { ply: 2, symbol: 'O', cell: 4, actor: 'cpu', provenance: 'rng' },
@@ -17,14 +17,14 @@ export const humanTurnMatch: TicTacToeMatch = {
 }
 
 export const cpuTurnMatch: TicTacToeMatch = {
-  gameId: 'tic-tac-toe', id: 'fixture-cpu-turn', humanSymbol: 'X',
+  assignment: { opponent: 'rng' }, gameId: 'tic-tac-toe', id: 'fixture-cpu-turn', humanSymbol: 'X',
   moves: [{ ply: 1, symbol: 'X', cell: 0, actor: 'human', provenance: 'human' }],
   position: { board: ['X', null, null, null, null, null, null, null, null], nextSymbol: 'O', outcome: { kind: 'ongoing' }, winningLines: [] },
   outcome: { kind: 'ongoing' },
 }
 
 export const wonMatch: TicTacToeMatch = {
-  gameId: 'tic-tac-toe', id: 'fixture-win', humanSymbol: 'X',
+  assignment: { opponent: 'rng' }, gameId: 'tic-tac-toe', id: 'fixture-win', humanSymbol: 'X',
   moves: [
     { ply: 1, symbol: 'X', cell: 0, actor: 'human', provenance: 'human' },
     { ply: 2, symbol: 'O', cell: 3, actor: 'cpu', provenance: 'rng' },
@@ -37,7 +37,7 @@ export const wonMatch: TicTacToeMatch = {
 }
 
 export const drawnMatch: TicTacToeMatch = {
-  gameId: 'tic-tac-toe', id: 'fixture-draw', humanSymbol: 'X',
+  assignment: { opponent: 'rng' }, gameId: 'tic-tac-toe', id: 'fixture-draw', humanSymbol: 'X',
   moves: [
     { ply: 1, symbol: 'X', cell: 0, actor: 'human', provenance: 'human' },
     { ply: 2, symbol: 'O', cell: 1, actor: 'cpu', provenance: 'rng' },
@@ -54,18 +54,18 @@ export const drawnMatch: TicTacToeMatch = {
 }
 
 export const resignedMatch: TicTacToeMatch = {
-  gameId: 'tic-tac-toe', id: 'fixture-resigned', humanSymbol: 'X',
+  assignment: { opponent: 'rng' }, gameId: 'tic-tac-toe', id: 'fixture-resigned', humanSymbol: 'X',
   moves: [{ ply: 1, symbol: 'X', cell: 0, actor: 'human', provenance: 'human' }],
   position: { board: ['X', null, null, null, null, null, null, null, null], nextSymbol: 'O', outcome: { kind: 'ongoing' }, winningLines: [] },
   outcome: { kind: 'resignation', resigningSymbol: 'X', winner: 'O', ply: 1 },
 }
 
 export const validSaves = {
-  humanTurn: { schemaVersion: 1, match: humanTurnMatch, recovery: { consecutiveInvalid: 0 } },
-  cpuTurnAfterTwoInvalid: { schemaVersion: 1, match: cpuTurnMatch, recovery: { consecutiveInvalid: 2 } },
-  win: { schemaVersion: 1, match: wonMatch, recovery: { consecutiveInvalid: 0 } },
-  draw: { schemaVersion: 1, match: drawnMatch, recovery: { consecutiveInvalid: 0 } },
-  resignation: { schemaVersion: 1, match: resignedMatch, recovery: { consecutiveInvalid: 0 } },
+  humanTurn: { schemaVersion: 2, match: humanTurnMatch, recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 0, disposition: 'ready' } },
+  cpuTurnAfterTwoInvalid: { schemaVersion: 2, match: { ...cpuTurnMatch, assignment: { opponent: 'jev', credentialRoute: 'visitor' } }, recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 2, disposition: 'ready' } },
+  win: { schemaVersion: 2, match: wonMatch, recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 0, disposition: 'ready' } },
+  draw: { schemaVersion: 2, match: drawnMatch, recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 0, disposition: 'ready' } },
+  resignation: { schemaVersion: 2, match: resignedMatch, recovery: { consecutiveServiceFailures: 0, consecutiveInvalid: 0, disposition: 'ready' } },
 } satisfies Record<string, MatchEnvelope>
 
 export const validSettings = { schemaVersion: 1, settings: { confirmMoves: true } } satisfies SettingsEnvelope
